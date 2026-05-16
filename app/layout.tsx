@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${bebasNeue.variable} ${dmSans.variable}`}>
-      <body className=" max-w-3xl mx-auto px-4 py-8 overflow-x-hidden antialiased">{children}</body>
+      <body className=" antialiased">{children}</body>
     </html>
   );
 }
