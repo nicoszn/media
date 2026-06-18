@@ -12,7 +12,7 @@ import { MediaFile, OperationConfig, OperationType } from "@/lib/EditorOrchestra
 const TOOLS: { id: OperationType; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "trim", label: "Trim", icon: Scissors },
   { id: "split", label: "Split", icon: Layers },
-  { id: "merge", label: "Merge", icon: Layers },
+  // { id: "merge", label: "Merge", icon: Layers },
   { id: "resize", label: "Resize", icon: Maximize2 },
   { id: "compress", label: "Compress", icon: Archive },
   { id: "speed", label: "Speed", icon: Gauge },
