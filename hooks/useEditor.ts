@@ -96,14 +96,26 @@ export function useEditor(): UseEditorReturn {
   }, [ensureLoaded]);
 
   const processFile = useCallback(async (config: OperationConfig) => {
-  // ...
-  const result = await orchestrator.current.process(state.mediaFile, config);
+  const media = state.mediaFile;                // <-- local copy
+  if (!media) {
+    setState((s) => ({ ...s, error: "No file loaded. Drop a file before running an operation." }));
+    return;
+  }
+  setState((s) => ({
+    ...s,
+    isProcessing: true,
+    error: null,
+    result: null,
+    progress: 0,
+    orchestratorState: "processing",
+  }));
+  const result = await orchestrator.current.process(media, config);   // <-- use local
   setState((s) => ({
     ...s,
     isProcessing: false,
     result,
     error: "error" in result ? result.error ?? null : null,
-    orchestratorState: "success" in result || result.success ? "done" : "error",   // <-- ERROR HERE
+    orchestratorState: result.success ? "done" : "error",   // <-- also fix this line
     progress: result.success ? 100 : 0,
   }));
 }, [state.mediaFile]);
