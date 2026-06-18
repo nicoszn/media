@@ -42,6 +42,7 @@ export interface OperationConfig {
   trimEnd?: number;
   // Split
   splitAt?: number;
+  splitPoints?: number[];
   // Resize
   width?: number;
   height?: number;
@@ -82,6 +83,21 @@ export interface SplitResult {
   part2Size: number;
 }
 
+export interface MultiSplitSegment {
+  url: string;
+  name: string;
+  size: number;
+  startTime: number;
+  endTime: number;
+}
+
+export interface MultiSplitResult {
+  success: true;
+  segments: MultiSplitSegment[];
+  outputName: string;
+  outputSize: number;
+}
+
 export interface FramesResult {
   success: true;
   frameUrls: string[];
@@ -97,7 +113,7 @@ export interface StandardResult {
   error?: string;
 }
 
-export type ProcessResult = StandardResult | SplitResult | FramesResult;
+export type ProcessResult = StandardResult | SplitResult | MultiSplitResult | FramesResult;
 
 export type OrchestratorState = "idle" | "loading" | "ready" | "processing" | "done" | "error";
 
@@ -210,7 +226,10 @@ export class EditorOrchestrator {
       let result: ProcessResult;
 
       if (config.type === "split") {
-        result = await this.handleSplit(inputName, media, config);
+        const isMulti = config.splitPoints && config.splitPoints.length > 0;
+        result = isMulti
+          ? await this.handleMultiSplit(inputName, media, config)
+          : await this.handleSplit(inputName, media, config);
       } else if (config.type === "extract_frames") {
         result = await this.handleExtractFrames(inputName, media, config);
       } else {
@@ -303,6 +322,87 @@ export class EditorOrchestrator {
     }
   }
 
+    // ─── multiSplit() — N cut points → N+1 segments ──────────────────────────────
+
+  private async handleMultiSplit(
+    inputName: string,
+    media: MediaFile,
+    config: OperationConfig
+  ): Promise<MultiSplitResult | StandardResult> {
+    const ext = this.getExtension(media.name);
+    const duration = media.duration ?? 0;
+
+    // Build sorted, deduplicated, bounded cut points
+    const raw = [...(config.splitPoints ?? [])];
+    const cuts = [...new Set(raw.map((t) => Math.max(0.1, Math.min(t, duration - 0.1))))]
+      .sort((a, b) => a - b);
+
+    // Derive N+1 segments from cuts
+    const boundaries: Array<{ start: number; end: number }> = [];
+    let prev = 0;
+    for (const cut of cuts) {
+      if (cut - prev > 0.05) boundaries.push({ start: prev, end: cut });
+      prev = cut;
+    }
+    if (duration - prev > 0.05) boundaries.push({ start: prev, end: duration });
+
+    if (boundaries.length < 2) {
+      return { success: false, error: "Add at least one cut point to create multiple segments." };
+    }
+
+    const ts = Date.now();
+    const outputNames: string[] = boundaries.map((_, i) => `msplit_${ts}_seg${i + 1}.${ext}`);
+    const toClean = [inputName, ...outputNames];
+
+    try {
+      for (let i = 0; i < boundaries.length; i++) {
+        const { start, end } = boundaries[i];
+        this.progressCb?.(
+          Math.round((i / boundaries.length) * 90),
+          `Cutting segment ${i + 1} of ${boundaries.length}…`
+        );
+        await this.ffmpeg.exec([
+          "-threads", "1",
+          "-i", inputName,
+          "-ss", String(start),
+          "-to", String(end),
+          "-c", "copy",
+          outputNames[i],
+        ]);
+      }
+
+      const segments: MultiSplitSegment[] = [];
+      for (let i = 0; i < boundaries.length; i++) {
+        const data = await this.ffmpeg.readFile(outputNames[i]);
+        const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+        const blob = new Blob([bytes], { type: media.type });
+        segments.push({
+          url: URL.createObjectURL(blob),
+          name: outputNames[i],
+          size: blob.size,
+          startTime: boundaries[i].start,
+          endTime: boundaries[i].end,
+        });
+      }
+
+      await this.cleanup(toClean);
+      this.state = "done";
+      this.progressCb?.(100, "Done");
+
+      return {
+        success: true,
+        segments,
+        outputName: `${segments.length} segments`,
+        outputSize: segments.reduce((acc, s) => acc + s.size, 0),
+      };
+    } catch (error) {
+      await this.cleanup(toClean);
+      this.state = "error";
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  
   // ─── extract_frames() — multiple output files ────────────────────────────────
 
   private async handleExtractFrames(
