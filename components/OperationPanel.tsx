@@ -581,7 +581,6 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
 
         {activeOp === "trim" && <TrimForm media={media} onRun={onProcess} busy={busy} />}
         {activeOp === "split" && <SplitForm media={media} onRun={onProcess} busy={busy} />}
-        {activeOp === "merge" && <MergeForm onMerge={onMerge} busy={busy} />}
         {activeOp === "resize" && <ResizeForm onRun={onProcess} busy={busy} />}
         {activeOp === "compress" && <CompressForm onRun={onProcess} busy={busy} />}
         {activeOp === "speed" && <SpeedForm onRun={onProcess} busy={busy} />}
