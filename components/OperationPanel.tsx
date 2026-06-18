@@ -5,13 +5,13 @@ import {
   Scissors, Layers, Maximize2, Archive, Gauge,
   RotateCcw, Film, FlipHorizontal, Rewind,
   Music, Image, Ratio, RefreshCw, Volume2,
-  RotateCw, Sparkles, Play, Upload
+  RotateCw, Sparkles, Play, Upload, ChevronsRight, Plus, Trash2
 } from "lucide-react";
 import { MediaFile, OperationConfig, OperationType } from "@/lib/EditorOrchestrator";
 
 const TOOLS: { id: OperationType; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "trim", label: "Trim", icon: Scissors },
-  { id: "split", label: "Split", icon: Layers },
+  { id: "split", label: "Split", icon: ChevronsRight },
   // { id: "merge", label: "Merge", icon: Layers },
   { id: "resize", label: "Resize", icon: Maximize2 },
   { id: "compress", label: "Compress", icon: Archive },
@@ -180,22 +180,184 @@ function TrimForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operati
 }
 
 function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: OperationConfig) => void; busy: boolean }) {
-  const [at, setAt] = useState((media.duration ?? 60) / 2);
+  const duration = media.duration ?? 60;
+  const [points, setPoints] = useState<number[]>([Math.round(duration / 2)]);
+
+  const addPoint = () => {
+    // Insert new point at midpoint of the largest gap
+    const sorted = [...points].sort((a, b) => a - b);
+    const boundaries = [0, ...sorted, duration];
+    let maxGap = 0;
+    let insertAt = duration / 2;
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const gap = boundaries[i + 1] - boundaries[i];
+      if (gap > maxGap) {
+        maxGap = gap;
+        insertAt = Math.round((boundaries[i] + boundaries[i + 1]) / 2);
+      }
+    }
+    setPoints((prev) => [...prev, insertAt].sort((a, b) => a - b));
+  };
+
+  const removePoint = (idx: number) => {
+    setPoints((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updatePoint = (idx: number, val: number) => {
+    setPoints((prev) => {
+      const next = [...prev];
+      next[idx] = Math.max(0.1, Math.min(val, duration - 0.1));
+      return next;
+    });
+  };
+
+  const sorted = [...points].sort((a, b) => a - b);
+  const segmentCount = sorted.length + 1;
+
+  const fmtTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-  <Label>Split at</Label>
-  <Slider
-    value={at}
-    min={0}
-    max={media.duration ?? 60}
-    step={0.1}
-    onChange={setAt}
-    format={formatTime}
-  />
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.6 }}>
-        The first segment will be downloaded. Both parts are processed.
-      </p>
-      <RunButton busy={busy} onClick={() => onRun({ type: "split", splitAt: at })} />
+
+      {/* Segment count badge */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {segmentCount} segment{segmentCount !== 1 ? "s" : ""}
+        </span>
+        <button
+          onClick={addPoint}
+          disabled={points.length >= 9}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            padding: "4px 10px",
+            background: points.length >= 9 ? "var(--color-card)" : "rgba(124,58,237,0.12)",
+            border: `1px solid ${points.length >= 9 ? "var(--color-border)" : "rgba(124,58,237,0.3)"}`,
+            borderRadius: "6px",
+            color: points.length >= 9 ? "var(--color-text-muted)" : "#8B5CF6",
+            fontFamily: "DM Mono, monospace",
+            fontSize: "10px",
+            cursor: points.length >= 9 ? "not-allowed" : "pointer",
+          }}
+        >
+          <Plus size={11} /> Add cut
+        </button>
+      </div>
+
+      {/* Timeline visualisation */}
+      <div style={{
+        position: "relative",
+        height: "32px",
+        background: "var(--color-card)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "6px",
+        overflow: "hidden",
+      }}>
+        {/* Segment fills */}
+        {[0, ...sorted, duration].map((_, i, arr) => {
+          if (i === arr.length - 1) return null;
+          const left = (arr[i] / duration) * 100;
+          const width = ((arr[i + 1] - arr[i]) / duration) * 100;
+          const hue = 260 + i * 22;
+          return (
+            <div key={i} style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: `${left}%`,
+              width: `${width}%`,
+              background: `hsla(${hue}, 70%, 55%, 0.25)`,
+              borderRight: i < arr.length - 2 ? "1px solid rgba(124,58,237,0.5)" : "none",
+            }}>
+              <span style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%,-50%)",
+                fontFamily: "DM Mono, monospace",
+                fontSize: "9px",
+                color: "#8B5CF6",
+              }}>
+                {i + 1}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Cut point inputs */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {points.map((pt, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* Scrubber */}
+            <div style={{ flex: 1 }}>
+              <input
+                type="range"
+                min={0.1}
+                max={duration - 0.1}
+                step={0.1}
+                value={pt}
+                onChange={(e) => updatePoint(i, Number(e.target.value))}
+                style={{ width: "100%", accentColor: "#7C3AED", cursor: "pointer" }}
+              />
+            </div>
+            {/* Time display / input */}
+            <input
+              type="number"
+              min={0.1}
+              max={duration - 0.1}
+              step={0.1}
+              value={Number(pt.toFixed(1))}
+              onChange={(e) => updatePoint(i, Number(e.target.value))}
+              style={{
+                width: "60px",
+                padding: "5px 8px",
+                background: "var(--color-card)",
+                border: "1px solid var(--color-border-bright)",
+                borderRadius: "6px",
+                color: "#F1F5F9",
+                fontFamily: "DM Mono, monospace",
+                fontSize: "11px",
+                textAlign: "right",
+              }}
+            />
+            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", width: "36px", flexShrink: 0 }}>
+              {fmtTime(pt)}
+            </span>
+            {/* Remove */}
+            <button
+              onClick={() => removePoint(i)}
+              disabled={points.length === 1}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: points.length === 1 ? "not-allowed" : "pointer",
+                color: points.length === 1 ? "var(--color-border)" : "#EF4444",
+                display: "flex",
+                alignItems: "center",
+                padding: "4px",
+                flexShrink: 0,
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <RunButton
+        busy={busy}
+        onClick={() => onRun({ type: "split", splitPoints: sorted })}
+      />
     </div>
   );
 }
