@@ -1,19 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
-  async headers() {
+  
+  async rewrites() {
     return [
       {
-        source: "/(.*)",
-        headers: [
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
-          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
-        ],
+        source: '/api/video/info',
+        destination: 'https://web-production-a9b29.up.railway.app/info',
       },
     ];
   },
+  turbopack: {},
 };
 
 export default nextConfig;
