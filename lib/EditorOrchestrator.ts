@@ -253,7 +253,8 @@ export class EditorOrchestrator {
           ]);
           // Return part1 as primary output
           const data = await this.ffmpeg.readFile(outputName);
-          const blob = new Blob([data], { type: media.type });
+          const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+          const blob = new Blob([bytes], { type: media.type });
           const url = URL.createObjectURL(blob);
           this.state = "done";
           return {
@@ -456,9 +457,11 @@ export class EditorOrchestrator {
       }
 
       const data = await this.ffmpeg.readFile(outputName);
-      const mimeType = this.getMimeType(outputName, media.type);
-      const blob = new Blob([data], { type: mimeType });
-      const url = URL.createObjectURL(blob);
+const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+const mimeType = this.getMimeType(outputName, media.type);
+const blob = new Blob([bytes], { type: mimeType });
+const url = URL.createObjectURL(blob);
+
 
       // Cleanup FS
       await this.ffmpeg.deleteFile(inputName).catch(() => {});
@@ -506,8 +509,9 @@ export class EditorOrchestrator {
       ]);
 
       const data = await this.ffmpeg.readFile(outputName);
-      const blob = new Blob([data], { type: "video/mp4" });
-      const url = URL.createObjectURL(blob);
+const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+const blob = new Blob([bytes], { type: "video/mp4" });
+const url = URL.createObjectURL(blob);
 
       // Cleanup
       for (const f of fileList) await this.ffmpeg.deleteFile(f).catch(() => {});
