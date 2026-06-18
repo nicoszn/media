@@ -115,7 +115,7 @@ export function useEditor(): UseEditorReturn {
       isProcessing: false,
       result,
       error: "error" in result ? result.error ?? null : null,
-      orchestratorState: "success" in result || result.success ? "done" : "error",
+      orchestratorState: result.success ? "done" : "error",
       progress: result.success ? 100 : 0,
     }));
   }, [state.mediaFile]);
