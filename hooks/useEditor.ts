@@ -96,29 +96,17 @@ export function useEditor(): UseEditorReturn {
   }, [ensureLoaded]);
 
   const processFile = useCallback(async (config: OperationConfig) => {
-    // Explicit error state when called without a file loaded
-    if (!state.mediaFile) {
-      setState((s) => ({ ...s, error: "No file loaded. Drop a file before running an operation." }));
-      return;
-    }
-    setState((s) => ({
-      ...s,
-      isProcessing: true,
-      error: null,
-      result: null,
-      progress: 0,
-      orchestratorState: "processing",
-    }));
-    const result = await orchestrator.current.process(state.mediaFile, config);
-    setState((s) => ({
-      ...s,
-      isProcessing: false,
-      result,
-      error: "error" in result ? result.error ?? null : null,
-      orchestratorState: result.success ? "done" : "error",
-      progress: result.success ? 100 : 0,
-    }));
-  }, [state.mediaFile]);
+  // ...
+  const result = await orchestrator.current.process(state.mediaFile, config);
+  setState((s) => ({
+    ...s,
+    isProcessing: false,
+    result,
+    error: "error" in result ? result.error ?? null : null,
+    orchestratorState: "success" in result || result.success ? "done" : "error",   // <-- ERROR HERE
+    progress: result.success ? 100 : 0,
+  }));
+}, [state.mediaFile]);
 
   const mergeFiles = useCallback(async (files: File[]) => {
     if (files.length < 2) {
