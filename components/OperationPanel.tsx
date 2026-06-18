@@ -172,7 +172,7 @@ function TrimForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operati
         </div>
       <div>
         <Label>End</Label>
-      <Slider value={start} min={0} max={media.duration ?? 60} step={0.1} onChange={setEnd} format={formatTime} />
+      <Slider value={end} min={0} max={media.duration ?? 60} step={0.1} onChange={setEnd} format={formatTime} />
         </div>
       <RunButton busy={busy} onClick={() => onRun({ type: "trim", trimStart: start, trimEnd: end })} />
     </div>
