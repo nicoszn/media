@@ -22,8 +22,6 @@ export type OperationType =
   | "volume"
   | "rotate"
   | "denoise";
-// NOTE: "merge" is handled via mergeMultiple(), not process()
-// NOTE: "watermark" removed — not implemented, was dead declaration
 
 export interface MediaFile {
   id: string;
@@ -39,55 +37,69 @@ export interface MediaFile {
 
 export interface OperationConfig {
   type: OperationType;
+  // Trim
   trimStart?: number;
   trimEnd?: number;
+  // Split
   splitAt?: number;
+  // Resize
   width?: number;
   height?: number;
+  // Compress
   crf?: number;
   audioBitrate?: string;
+  // Speed
   speedFactor?: number;
+  // Loop
   loopCount?: number;
+  // FPS
   targetFps?: number;
+  // Flip
   flipDirection?: "horizontal" | "vertical" | "both";
+  // Aspect ratio
   aspectRatio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9" | "custom";
   customAspectW?: number;
   customAspectH?: number;
+  // Format convert
   outputFormat?: string;
+  // Volume
   volumeLevel?: number;
+  // Rotate
   rotateDegrees?: 90 | 180 | 270;
-  frameInterval?: number; // extract one frame every N seconds
+  // Extract frames
+  frameInterval?: number;
+  // Denoise
   denoiseStrength?: number;
 }
 
 export interface SplitResult {
-  success: boolean;
-  part1Url?: string;
-  part1Name?: string;
-  part1Size?: number;
-  part2Url?: string;
-  part2Name?: string;
-  part2Size?: number;
-  error?: string;
+  success: true;
+  part1Url: string;
+  part1Name: string;
+  part1Size: number;
+  part2Url: string;
+  part2Name: string;
+  part2Size: number;
 }
 
-export interface ProcessResult {
+export interface FramesResult {
+  success: true;
+  frameUrls: string[];
+  outputName: string;
+  outputSize: number;
+}
+
+export interface StandardResult {
   success: boolean;
   outputUrl?: string;
   outputName?: string;
   outputSize?: number;
-  // extract_frames returns multiple
-  frameUrls?: string[];
   error?: string;
 }
 
-export type OrchestratorState =
-  | "idle"
-  | "loading"
-  | "ready"
-  | "processing"
-  | "done"
-  | "error";
+export type ProcessResult = StandardResult | SplitResult | FramesResult;
+
+export type OrchestratorState = "idle" | "loading" | "ready" | "processing" | "done" | "error";
 
 export type ProgressCallback = (progress: number, message: string) => void;
 export type LogCallback = (message: string) => void;
@@ -108,8 +120,7 @@ export class EditorOrchestrator {
       this.logCb?.(message);
     });
     this.ffmpeg.on("progress", ({ progress }) => {
-      // progress is 0–1; clamp and round to integer percentage
-      const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+      const pct = Math.min(99, Math.round(progress * 100));
       this.progressCb?.(pct, `Processing… ${pct}%`);
     });
   }
@@ -119,10 +130,6 @@ export class EditorOrchestrator {
       EditorOrchestrator.instance = new EditorOrchestrator();
     }
     return EditorOrchestrator.instance;
-  }
-
-  static resetInstance(): void {
-    EditorOrchestrator.instance = null;
   }
 
   getState(): OrchestratorState {
@@ -144,7 +151,6 @@ export class EditorOrchestrator {
     this.state = "loading";
     this.loadPromise = (async () => {
       try {
-        // jsdelivr/umd is more reliable than unpkg/esm for WASM cross-origin loads
         const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/umd";
         await this.ffmpeg.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
@@ -154,7 +160,7 @@ export class EditorOrchestrator {
       } catch (e) {
         this.state = "error";
         this.loadPromise = null;
-        throw new Error(`FFmpeg failed to load: ${e}`);
+        throw new Error(`FFmpeg failed to load. Check network connectivity. (${e})`);
       }
     })();
 
@@ -162,41 +168,35 @@ export class EditorOrchestrator {
   }
 
   isLoaded(): boolean {
-    return (
-      this.state === "ready" ||
-      this.state === "processing" ||
-      this.state === "done"
-    );
+    return this.state === "ready" || this.state === "processing" || this.state === "done";
   }
 
   async probeMedia(file: File): Promise<Partial<MediaFile>> {
     return new Promise((resolve) => {
-      if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
-        const el = document.createElement(
-          file.type.startsWith("video/") ? "video" : "audio"
-        ) as HTMLVideoElement;
-        el.preload = "metadata";
-        const objectUrl = URL.createObjectURL(file);
-        el.onloadedmetadata = () => {
-          resolve({
-            duration: el.duration,
-            width: (el as HTMLVideoElement).videoWidth || undefined,
-            height: (el as HTMLVideoElement).videoHeight || undefined,
-          });
-          URL.revokeObjectURL(objectUrl);
-        };
-        el.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          resolve({});
-        };
-        el.src = objectUrl;
-      } else {
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
+      if (!isVideo && !isAudio) return resolve({});
+
+      const el = document.createElement(isVideo ? "video" : "audio") as HTMLVideoElement;
+      el.preload = "metadata";
+      const url = URL.createObjectURL(file);
+      el.onloadedmetadata = () => {
+        resolve({
+          duration: isFinite(el.duration) ? el.duration : undefined,
+          width: isVideo ? (el.videoWidth || undefined) : undefined,
+          height: isVideo ? (el.videoHeight || undefined) : undefined,
+        });
+        URL.revokeObjectURL(url);
+      };
+      el.onerror = () => {
+        URL.revokeObjectURL(url);
         resolve({});
-      }
+      };
+      el.src = url;
     });
   }
 
-  // ─── process() — all single-output operations ────────────────────────────────
+  // ─── process() — dispatches all single-file operations ───────────────────────
 
   async process(media: MediaFile, config: OperationConfig): Promise<ProcessResult> {
     if (!this.isLoaded()) await this.load();
@@ -207,48 +207,60 @@ export class EditorOrchestrator {
     try {
       await this.ffmpeg.writeFile(inputName, await fetchFile(media.file));
 
-      // extract_frames is handled separately — multiple output files
-      if (config.type === "extract_frames") {
-        return await this.handleExtractFrames(inputName, media, config);
+      let result: ProcessResult;
+
+      if (config.type === "split") {
+        result = await this.handleSplit(inputName, media, config);
+      } else if (config.type === "extract_frames") {
+        result = await this.handleExtractFrames(inputName, media, config);
+      } else {
+        result = await this.handleStandard(inputName, media, config);
       }
 
-      const { outputName, args } = this.buildArgs(inputName, media, config);
-
-      await this.ffmpeg.exec(["-threads", "1", ...args]);
-
-      const data = await this.ffmpeg.readFile(outputName);
-      const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
-      const mimeType = this.getMimeType(outputName, media.type);
-      const blob = new Blob([bytes], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-
-      await this.cleanup([inputName, outputName]);
-
-      this.state = "done";
-      return { success: true, outputUrl: url, outputName, outputSize: blob.size };
+      return result;
     } catch (error) {
-      await this.cleanup([inputName]).catch(() => {});
       this.state = "error";
+      await this.cleanup([inputName]);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
-  // ─── split() — two discrete outputs ─────────────────────────────────────────
+  // ─── Standard single-output operations ───────────────────────────────────────
 
-  async split(media: MediaFile, splitAt: number): Promise<SplitResult> {
-    if (!this.isLoaded()) await this.load();
-    this.state = "processing";
+  private async handleStandard(
+    inputName: string,
+    media: MediaFile,
+    config: OperationConfig
+  ): Promise<StandardResult> {
+    const { outputName, args } = this.buildArgs(inputName, media, config);
 
+    await this.ffmpeg.exec(["-threads", "1", ...args]);
+
+    const data = await this.ffmpeg.readFile(outputName);
+    const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+    const mimeType = this.getMimeType(outputName, media.type);
+    const blob = new Blob([bytes], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+
+    await this.cleanup([inputName, outputName]);
+    this.state = "done";
+
+    return { success: true, outputUrl: url, outputName, outputSize: blob.size };
+  }
+
+  // ─── split() — two output files, both returned ───────────────────────────────
+
+  private async handleSplit(
+    inputName: string,
+    media: MediaFile,
+    config: OperationConfig
+  ): Promise<SplitResult | StandardResult> {
     const ext = this.getExtension(media.name);
-    const base = media.name.replace(/\.[^/.]+$/, "");
-    const inputName = `input_${Date.now()}.${ext}`;
-    const part1Name = `${base}_part1.${ext}`;
-    const part2Name = `${base}_part2.${ext}`;
+    const splitAt = config.splitAt ?? (media.duration ? media.duration / 2 : 30);
+    const part1Name = `split_part1_${Date.now()}.${ext}`;
+    const part2Name = `split_part2_${Date.now()}.${ext}`;
 
     try {
-      await this.ffmpeg.writeFile(inputName, await fetchFile(media.file));
-
-      // Part 1: 0 → splitAt
       await this.ffmpeg.exec([
         "-threads", "1",
         "-i", inputName,
@@ -256,8 +268,6 @@ export class EditorOrchestrator {
         "-c", "copy",
         part1Name,
       ]);
-
-      // Part 2: splitAt → end
       await this.ffmpeg.exec([
         "-threads", "1",
         "-i", inputName,
@@ -275,8 +285,8 @@ export class EditorOrchestrator {
       const blob2 = new Blob([bytes2], { type: media.type });
 
       await this.cleanup([inputName, part1Name, part2Name]);
-
       this.state = "done";
+
       return {
         success: true,
         part1Url: URL.createObjectURL(blob1),
@@ -287,7 +297,65 @@ export class EditorOrchestrator {
         part2Size: blob2.size,
       };
     } catch (error) {
-      await this.cleanup([inputName, part1Name, part2Name]).catch(() => {});
+      await this.cleanup([inputName, part1Name, part2Name]);
+      this.state = "error";
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  // ─── extract_frames() — multiple output files ────────────────────────────────
+
+  private async handleExtractFrames(
+    inputName: string,
+    media: MediaFile,
+    config: OperationConfig
+  ): Promise<FramesResult | StandardResult> {
+    const interval = Math.max(1, config.frameInterval ?? 1);
+    const duration = media.duration ?? 60;
+    const expectedCount = Math.ceil(duration / interval);
+    const base = `frames_${Date.now()}`;
+    const pattern = `${base}_%04d.jpg`;
+
+    try {
+      await this.ffmpeg.exec([
+        "-threads", "1",
+        "-i", inputName,
+        "-vf", `fps=1/${interval}`,
+        "-q:v", "2",
+        pattern,
+      ]);
+
+      const frameUrls: string[] = [];
+      const toClean: string[] = [inputName];
+
+      for (let i = 1; i <= expectedCount + 5; i++) {
+        const frameName = `${base}_${String(i).padStart(4, "0")}.jpg`;
+        try {
+          const data = await this.ffmpeg.readFile(frameName);
+          const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+          const blob = new Blob([bytes], { type: "image/jpeg" });
+          frameUrls.push(URL.createObjectURL(blob));
+          toClean.push(frameName);
+        } catch {
+          break; // no more frames at this index
+        }
+      }
+
+      await this.cleanup(toClean);
+      this.state = "done";
+
+      if (frameUrls.length === 0) {
+        return { success: false, error: "No frames were extracted from this file." };
+      }
+
+      return {
+        success: true,
+        frameUrls,
+        outputName: `${frameUrls.length} frame${frameUrls.length !== 1 ? "s" : ""} extracted`,
+        outputSize: 0,
+      };
+    } catch (error) {
+      await this.cleanup([inputName]);
       this.state = "error";
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -295,16 +363,17 @@ export class EditorOrchestrator {
 
   // ─── mergeMultiple() ─────────────────────────────────────────────────────────
 
-  async mergeMultiple(files: File[]): Promise<ProcessResult> {
+  async mergeMultiple(files: File[]): Promise<StandardResult> {
     if (!this.isLoaded()) await this.load();
     this.state = "processing";
 
+    const ts = Date.now();
     const fileList: string[] = [];
-    const outputName = `merged_${Date.now()}.mp4`;
+    const outputName = `merged_${ts}.mp4`;
 
     try {
       for (let i = 0; i < files.length; i++) {
-        const name = `merge_input_${i}_${Date.now()}.${this.getExtension(files[i].name)}`;
+        const name = `merge_${ts}_${i}.${this.getExtension(files[i].name)}`;
         await this.ffmpeg.writeFile(name, await fetchFile(files[i]));
         fileList.push(name);
       }
@@ -327,11 +396,11 @@ export class EditorOrchestrator {
       const url = URL.createObjectURL(blob);
 
       await this.cleanup([...fileList, "concat.txt", outputName]);
-
       this.state = "done";
+
       return { success: true, outputUrl: url, outputName, outputSize: blob.size };
     } catch (error) {
-      await this.cleanup([...fileList, "concat.txt", outputName]).catch(() => {});
+      await this.cleanup([...fileList, "concat.txt", outputName]);
       this.state = "error";
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -345,7 +414,7 @@ export class EditorOrchestrator {
     config: OperationConfig
   ): { outputName: string; args: string[] } {
     const ext = this.getExtension(media.name);
-    const base = inputName.replace(/\.[^/.]+$/, "");
+    const base = `out_${Date.now()}`;
 
     switch (config.type) {
       case "trim": {
@@ -362,7 +431,7 @@ export class EditorOrchestrator {
         const outputName = `${base}_resize.${ext}`;
         const w = config.width && config.width > 0 ? config.width : -2;
         const h = config.height && config.height > 0 ? config.height : -2;
-        // Guard: both -2 is invalid — default to 1280 width
+        // Guard: both -2 is invalid — default to 1280 width maintain aspect
         const safeW = w === -2 && h === -2 ? 1280 : w;
         return {
           outputName,
@@ -391,7 +460,7 @@ export class EditorOrchestrator {
         const factor = config.speedFactor ?? 1.5;
         const vPts = `setpts=${(1 / factor).toFixed(6)}*PTS`;
         const aTempo = this.buildAtempoChain(factor);
-        // filter_complex is more robust than separate -filter:v/-filter:a
+        // filter_complex is robust — handles audio-only and video-only streams too
         return {
           outputName,
           args: [
@@ -426,7 +495,12 @@ export class EditorOrchestrator {
         const filterMap = { horizontal: "hflip", vertical: "vflip", both: "hflip,vflip" };
         return {
           outputName,
-          args: ["-i", inputName, "-vf", filterMap[config.flipDirection ?? "horizontal"], "-c:a", "copy", outputName],
+          args: [
+            "-i", inputName,
+            "-vf", filterMap[config.flipDirection ?? "horizontal"],
+            "-c:a", "copy",
+            outputName,
+          ],
         };
       }
 
@@ -449,7 +523,7 @@ export class EditorOrchestrator {
       case "aspect_ratio": {
         const outputName = `${base}_aspect.${ext}`;
         const [aw, ah] = this.resolveAspectRatio(config);
-        // scale-to-fit then pad — correct letterbox/pillarbox
+        // scale-to-fit then pad — correct letterbox / pillarbox
         const vf = `scale=${aw}:${ah}:force_original_aspect_ratio=decrease,pad=${aw}:${ah}:(ow-iw)/2:(oh-ih)/2:black`;
         return {
           outputName,
@@ -460,10 +534,7 @@ export class EditorOrchestrator {
       case "format_convert": {
         const outExt = config.outputFormat ?? "mp4";
         const outputName = `${base}_converted.${outExt}`;
-        return {
-          outputName,
-          args: ["-i", inputName, outputName],
-        };
+        return { outputName, args: ["-i", inputName, outputName] };
       }
 
       case "volume": {
@@ -483,7 +554,12 @@ export class EditorOrchestrator {
         };
         return {
           outputName,
-          args: ["-i", inputName, "-vf", transposeMap[config.rotateDegrees ?? 90], "-c:a", "copy", outputName],
+          args: [
+            "-i", inputName,
+            "-vf", transposeMap[config.rotateDegrees ?? 90],
+            "-c:a", "copy",
+            outputName,
+          ],
         };
       }
 
@@ -492,68 +568,18 @@ export class EditorOrchestrator {
         const s = config.denoiseStrength ?? 5;
         return {
           outputName,
-          args: ["-i", inputName, "-vf", `hqdn3d=${s}:${s}:${s * 3}:${s * 3}`, "-c:a", "copy", outputName],
+          args: [
+            "-i", inputName,
+            "-vf", `hqdn3d=${s}:${s}:${s * 3}:${s * 3}`,
+            "-c:a", "copy",
+            outputName,
+          ],
         };
       }
 
       default:
         throw new Error(`Unhandled operation: ${(config as OperationConfig).type}`);
     }
-  }
-
-  // ─── extract_frames — multiple output files ───────────────────────────────────
-
-  private async handleExtractFrames(
-    inputName: string,
-    media: MediaFile,
-    config: OperationConfig
-  ): Promise<ProcessResult> {
-    const base = inputName.replace(/\.[^/.]+$/, "");
-    const interval = config.frameInterval ?? 1;
-    const duration = media.duration ?? 60;
-    const expectedCount = Math.floor(duration / interval);
-    // Use %04d pattern — FFmpeg writes frame_0001.jpg, frame_0002.jpg, etc.
-    const pattern = `${base}_frame_%04d.jpg`;
-
-    await this.ffmpeg.exec([
-      "-threads", "1",
-      "-i", inputName,
-      "-vf", `fps=1/${interval}`,
-      "-q:v", "2",
-      pattern,
-    ]);
-
-    // Collect all generated frames
-    const frameUrls: string[] = [];
-    const toClean = [inputName];
-
-    for (let i = 1; i <= expectedCount + 5; i++) {
-      const frameName = `${base}_frame_${String(i).padStart(4, "0")}.jpg`;
-      try {
-        const data = await this.ffmpeg.readFile(frameName);
-        const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
-        const blob = new Blob([bytes], { type: "image/jpeg" });
-        frameUrls.push(URL.createObjectURL(blob));
-        toClean.push(frameName);
-      } catch {
-        // No more frames at this index
-        break;
-      }
-    }
-
-    await this.cleanup(toClean);
-    this.state = "done";
-
-    if (frameUrls.length === 0) {
-      return { success: false, error: "No frames were extracted" };
-    }
-
-    return {
-      success: true,
-      frameUrls,
-      outputName: `${frameUrls.length} frames extracted`,
-      outputSize: 0,
-    };
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -563,7 +589,6 @@ export class EditorOrchestrator {
   }
 
   private buildAtempoChain(factor: number): string {
-    // atempo only accepts 0.5–2.0; chain filters for values outside that range
     if (factor >= 0.5 && factor <= 2.0) return `atempo=${factor.toFixed(6)}`;
     const chains: string[] = [];
     let remaining = factor;
@@ -622,7 +647,7 @@ export class EditorOrchestrator {
     return filename.split(".").pop()?.toLowerCase() ?? "mp4";
   }
 
-  // ─── Public utils (used by UI) ────────────────────────────────────────────────
+  // ─── Public utils ─────────────────────────────────────────────────────────────
 
   formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
