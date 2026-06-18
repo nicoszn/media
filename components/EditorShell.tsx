@@ -8,9 +8,14 @@ import {
   AlertCircle, Loader2, CheckCircle2, Terminal, ChevronDown, ChevronUp
 } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
-import { OperationConfig, OperationType, ProcessResult } from "@/lib/EditorOrchestrator";
+import {
+  OperationConfig, OperationType, ProcessResult,
+  MultiSplitResult, SplitResult, FramesResult
+} from "@/lib/EditorOrchestrator";
 import OperationPanel from "@/components/OperationPanel";
 import MediaPreview from "@/components/MediaPreview";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatBytes(b: number): string {
   if (b < 1024) return `${b} B`;
@@ -18,13 +23,27 @@ function formatBytes(b: number): string {
   return `${(b / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function isSplitResult(r: ProcessResult): r is Extract<ProcessResult, { part1Url: string }> {
+function fmtTime(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+// ─── Type guards ──────────────────────────────────────────────────────────────
+
+function isMultiSplitResult(r: ProcessResult): r is MultiSplitResult {
+  return r.success && "segments" in r;
+}
+
+function isSplitResult(r: ProcessResult): r is SplitResult {
   return r.success && "part1Url" in r;
 }
 
-function isFramesResult(r: ProcessResult): r is Extract<ProcessResult, { frameUrls: string[] }> {
+function isFramesResult(r: ProcessResult): r is FramesResult {
   return r.success && "frameUrls" in r;
 }
+
+// ─── DropZone ─────────────────────────────────────────────────────────────────
 
 function DropZone({ onFile }: { onFile: (f: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,10 +96,20 @@ function DropZone({ onFile }: { onFile: (f: File) => void }) {
         <Upload size={24} color="#7C3AED" />
       </div>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "15px", fontWeight: 600, color: "#F1F5F9", marginBottom: "6px" }}>
+        <div style={{
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: "15px",
+          fontWeight: 600,
+          color: "#F1F5F9",
+          marginBottom: "6px",
+        }}>
           Drop a file here
         </div>
-        <div style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", color: "var(--color-text-muted)" }}>
+        <div style={{
+          fontFamily: "Inter, sans-serif",
+          fontSize: "13px",
+          color: "var(--color-text-muted)",
+        }}>
           or click to browse — MP4, MOV, WebM, MP3, WAV, and more
         </div>
       </div>
@@ -95,11 +124,10 @@ function DropZone({ onFile }: { onFile: (f: File) => void }) {
   );
 }
 
+// ─── LogPanel ─────────────────────────────────────────────────────────────────
 
 function LogPanel({ logs }: { logs: string[] }) {
   const [expanded, setExpanded] = useState(false);
-
-  if (logs.length === 0) return null;
 
   const useful = logs.filter((l) => {
     const t = l.trim();
@@ -124,7 +152,6 @@ function LogPanel({ logs }: { logs: string[] }) {
       borderRadius: "10px",
       overflow: "hidden",
     }}>
-      {/* Header row — always visible */}
       <button
         onClick={() => setExpanded((x) => !x)}
         style={{
@@ -151,10 +178,12 @@ function LogPanel({ logs }: { logs: string[] }) {
         }}>
           {preview}
         </span>
-        {expanded ? <ChevronUp size={13} color="#475569" /> : <ChevronDown size={13} color="#475569" />}
+        {expanded
+          ? <ChevronUp size={13} color="#475569" />
+          : <ChevronDown size={13} color="#475569" />
+        }
       </button>
 
-      {/* Expanded log */}
       {expanded && (
         <div style={{
           maxHeight: "200px",
@@ -187,10 +216,103 @@ function LogPanel({ logs }: { logs: string[] }) {
   );
 }
 
+// ─── Download button style ────────────────────────────────────────────────────
+
+const downloadBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  padding: "8px 14px",
+  background: "#10B981",
+  color: "#fff",
+  borderRadius: "8px",
+  textDecoration: "none",
+  fontFamily: "Space Grotesk, sans-serif",
+  fontSize: "13px",
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+  flexShrink: 0,
+};
+
+// ─── ResultPanel ──────────────────────────────────────────────────────────────
 
 function ResultPanel({ result }: { result: ProcessResult }) {
   if (!result.success) return null;
 
+  // MultiSplit — N segments
+  if (isMultiSplitResult(result)) {
+    return (
+      <div style={{
+        width: "100%",
+        maxWidth: "560px",
+        background: "rgba(16,185,129,0.08)",
+        border: "1px solid rgba(16,185,129,0.3)",
+        borderRadius: "12px",
+        padding: "20px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <CheckCircle2 size={18} color="#10B981" />
+          <span style={{
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#10B981",
+          }}>
+            {result.segments.length} segments ready · {formatBytes(result.outputSize)}
+          </span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {result.segments.map((seg, i) => {
+            const hue = 260 + i * 22;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 12px",
+                  background: "var(--color-card)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                <div style={{
+                  width: "4px",
+                  height: "32px",
+                  background: `hsla(${hue}, 70%, 55%, 0.9)`,
+                  borderRadius: "2px",
+                  flexShrink: 0,
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: "Space Grotesk, sans-serif",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#F1F5F9",
+                  }}>
+                    Segment {i + 1}
+                  </div>
+                  <div style={{
+                    fontFamily: "DM Mono, monospace",
+                    fontSize: "10px",
+                    color: "var(--color-text-muted)",
+                  }}>
+                    {fmtTime(seg.startTime)} → {fmtTime(seg.endTime)} · {formatBytes(seg.size)}
+                  </div>
+                </div>
+                <a href={seg.url} download={seg.name} style={downloadBtnStyle}>
+                  <Download size={13} />
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Binary split — 2 parts
   if (isSplitResult(result)) {
     return (
       <div style={{
@@ -203,7 +325,12 @@ function ResultPanel({ result }: { result: ProcessResult }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
           <CheckCircle2 size={18} color="#10B981" />
-          <span style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#10B981" }}>
+          <span style={{
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#10B981",
+          }}>
             Split complete — 2 parts
           </span>
         </div>
@@ -212,10 +339,35 @@ function ResultPanel({ result }: { result: ProcessResult }) {
             { url: result.part1Url, name: result.part1Name, size: result.part1Size, label: "Part 1" },
             { url: result.part2Url, name: result.part2Name, size: result.part2Size, label: "Part 2" },
           ].map((p) => (
-            <div key={p.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <div
+              key={p.label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                padding: "10px 12px",
+                background: "var(--color-card)",
+                borderRadius: "8px",
+                border: "1px solid var(--color-border)",
+              }}
+            >
               <div>
-                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-secondary)" }}>{p.label}</div>
-                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)" }}>{formatBytes(p.size)}</div>
+                <div style={{
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#F1F5F9",
+                }}>
+                  {p.label}
+                </div>
+                <div style={{
+                  fontFamily: "DM Mono, monospace",
+                  fontSize: "10px",
+                  color: "var(--color-text-muted)",
+                }}>
+                  {formatBytes(p.size)}
+                </div>
               </div>
               <a href={p.url} download={p.name} style={downloadBtnStyle}>
                 <Download size={13} /> Download
@@ -227,6 +379,7 @@ function ResultPanel({ result }: { result: ProcessResult }) {
     );
   }
 
+  // Extract frames — image grid
   if (isFramesResult(result)) {
     return (
       <div style={{
@@ -239,7 +392,12 @@ function ResultPanel({ result }: { result: ProcessResult }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
           <CheckCircle2 size={18} color="#10B981" />
-          <span style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#10B981" }}>
+          <span style={{
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#10B981",
+          }}>
             {result.outputName}
           </span>
         </div>
@@ -251,11 +409,22 @@ function ResultPanel({ result }: { result: ProcessResult }) {
           overflowY: "auto",
         }}>
           {result.frameUrls.map((url, i) => (
-            <a key={i} href={url} download={`frame_${String(i + 1).padStart(4, "0")}.jpg`}>
+            <a
+              key={i}
+              href={url}
+              download={`frame_${String(i + 1).padStart(4, "0")}.jpg`}
+            >
               <img
                 src={url}
                 alt={`Frame ${i + 1}`}
-                style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", border: "1px solid var(--color-border)" }}
+                style={{
+                  width: "100%",
+                  height: "60px",
+                  objectFit: "cover",
+                  borderRadius: "6px",
+                  border: "1px solid var(--color-border)",
+                  display: "block",
+                }}
               />
             </a>
           ))}
@@ -264,6 +433,7 @@ function ResultPanel({ result }: { result: ProcessResult }) {
     );
   }
 
+  // Standard single-output result
   if ("outputUrl" in result && result.outputUrl) {
     return (
       <div style={{
@@ -279,11 +449,24 @@ function ResultPanel({ result }: { result: ProcessResult }) {
       }}>
         <CheckCircle2 size={22} color="#10B981" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#10B981", marginBottom: "4px" }}>
+          <div style={{
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#10B981",
+            marginBottom: "4px",
+          }}>
             Done
           </div>
-          <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {result.outputName} {result.outputSize ? `· ${formatBytes(result.outputSize)}` : ""}
+          <div style={{
+            fontFamily: "DM Mono, monospace",
+            fontSize: "11px",
+            color: "var(--color-text-muted)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {result.outputName}{result.outputSize ? ` · ${formatBytes(result.outputSize)}` : ""}
           </div>
         </div>
         <a href={result.outputUrl} download={result.outputName} style={downloadBtnStyle}>
@@ -296,22 +479,7 @@ function ResultPanel({ result }: { result: ProcessResult }) {
   return null;
 }
 
-const downloadBtnStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "6px",
-  padding: "8px 16px",
-  background: "#10B981",
-  color: "#fff",
-  borderRadius: "8px",
-  textDecoration: "none",
-  fontFamily: "Space Grotesk, sans-serif",
-  fontSize: "13px",
-  fontWeight: 600,
-  whiteSpace: "nowrap",
-  flexShrink: 0,
-};
-
+// ─── EditorShell ──────────────────────────────────────────────────────────────
 
 export default function EditorShell() {
   const searchParams = useSearchParams();
@@ -341,7 +509,12 @@ export default function EditorShell() {
   }, [loadFile, clearResult]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: "var(--color-bg)",
+      display: "flex",
+      flexDirection: "column",
+    }}>
 
       {/* ── Header ── */}
       <header style={{
@@ -353,16 +526,48 @@ export default function EditorShell() {
         gap: "12px",
         flexShrink: 0,
       }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "6px", textDecoration: "none", color: "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>
+        <Link href="/" style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          textDecoration: "none",
+          color: "var(--color-text-secondary)",
+          fontFamily: "Inter, sans-serif",
+          fontSize: "13px",
+        }}>
           <ChevronLeft size={16} /> Back
         </Link>
+
         <div style={{ width: "1px", height: "20px", background: "var(--color-border)" }} />
+
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <div style={{ width: "22px", height: "22px", background: "linear-gradient(135deg, #7C3AED, #06B6D4)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{
+            width: "22px",
+            height: "22px",
+            background: "linear-gradient(135deg, #7C3AED, #06B6D4)",
+            borderRadius: "5px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
             <Zap size={11} color="#fff" fill="#fff" />
           </div>
-          <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 700, fontSize: "15px", color: "#F1F5F9" }}>VForge</span>
-          <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)", marginLeft: "4px" }}>/ editor</span>
+          <span style={{
+            fontFamily: "Space Grotesk, sans-serif",
+            fontWeight: 700,
+            fontSize: "15px",
+            color: "#F1F5F9",
+          }}>
+            VForge
+          </span>
+          <span style={{
+            fontFamily: "DM Mono, monospace",
+            fontSize: "11px",
+            color: "var(--color-text-muted)",
+            marginLeft: "4px",
+          }}>
+            / editor
+          </span>
         </div>
 
         {/* Status */}
@@ -370,21 +575,42 @@ export default function EditorShell() {
           {isLoading && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <Loader2 size={13} color="#7C3AED" style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>Loading FFmpeg…</span>
+              <span style={{
+                fontFamily: "DM Mono, monospace",
+                fontSize: "11px",
+                color: "var(--color-text-muted)",
+              }}>
+                Loading FFmpeg…
+              </span>
             </div>
           )}
           {isProcessing && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <Loader2 size={13} color="#06B6D4" style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "#06B6D4" }}>{progressMessage || "Processing…"}</span>
+              <span style={{
+                fontFamily: "DM Mono, monospace",
+                fontSize: "11px",
+                color: "#06B6D4",
+              }}>
+                {progressMessage || "Processing…"}
+              </span>
             </div>
           )}
           {mediaFile && !busy && (
-            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{
+              fontFamily: "DM Mono, monospace",
+              fontSize: "11px",
+              color: "var(--color-text-muted)",
+              maxWidth: "200px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}>
               {mediaFile.name} · {formatBytes(mediaFile.size)}
             </span>
           )}
-          {/* Mobile panel toggle */}
+
+          {/* Mobile panel toggle — hidden on desktop via CSS */}
           {mediaFile && (
             <button
               onClick={() => setIsMobilePanelOpen((x) => !x)}
@@ -412,7 +638,7 @@ export default function EditorShell() {
       {/* ── Body ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
 
-        {/* Main content area */}
+        {/* Main content */}
         <div style={{
           flex: 1,
           display: "flex",
@@ -426,7 +652,14 @@ export default function EditorShell() {
         }}>
           {!mediaFile ? (
             <div style={{ textAlign: "center", width: "100%" }}>
-              <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", fontWeight: 600, color: "var(--color-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "24px" }}>
+              <div style={{
+                fontFamily: "DM Mono, monospace",
+                fontSize: "11px",
+                color: "var(--color-text-muted)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "24px",
+              }}>
                 drop a file to begin
               </div>
               <div style={{ display: "flex", justifyContent: "center" }}>
@@ -437,15 +670,49 @@ export default function EditorShell() {
             <>
               <MediaPreview media={mediaFile} />
 
-              {/* Progress */}
+              {/* Progress bar */}
               {isProcessing && (
-                <div style={{ width: "100%", maxWidth: "560px", background: "var(--color-card)", borderRadius: "8px", border: "1px solid var(--color-border)", padding: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-secondary)" }}>{progressMessage}</span>
-                    <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "#7C3AED" }}>{progress}%</span>
+                <div style={{
+                  width: "100%",
+                  maxWidth: "560px",
+                  background: "var(--color-card)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border)",
+                  padding: "16px",
+                }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}>
+                    <span style={{
+                      fontFamily: "DM Mono, monospace",
+                      fontSize: "11px",
+                      color: "var(--color-text-secondary)",
+                    }}>
+                      {progressMessage}
+                    </span>
+                    <span style={{
+                      fontFamily: "DM Mono, monospace",
+                      fontSize: "11px",
+                      color: "#7C3AED",
+                    }}>
+                      {progress}%
+                    </span>
                   </div>
-                  <div style={{ height: "4px", background: "var(--color-border)", borderRadius: "2px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #7C3AED, #06B6D4)", borderRadius: "2px", transition: "width 0.3s ease" }} />
+                  <div style={{
+                    height: "4px",
+                    background: "var(--color-border)",
+                    borderRadius: "2px",
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${progress}%`,
+                      background: "linear-gradient(90deg, #7C3AED, #06B6D4)",
+                      borderRadius: "2px",
+                      transition: "width 0.3s ease",
+                    }} />
                   </div>
                 </div>
               )}
@@ -455,11 +722,36 @@ export default function EditorShell() {
 
               {/* Error */}
               {error && (
-                <div style={{ width: "100%", maxWidth: "560px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "12px", padding: "16px 20px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                <div style={{
+                  width: "100%",
+                  maxWidth: "560px",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  display: "flex",
+                  gap: "12px",
+                  alignItems: "flex-start",
+                }}>
                   <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0, marginTop: "1px" }} />
                   <div>
-                    <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "13px", fontWeight: 600, color: "#EF4444", marginBottom: "4px" }}>Error</div>
-                    <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)", wordBreak: "break-word" }}>{error}</div>
+                    <div style={{
+                      fontFamily: "Space Grotesk, sans-serif",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#EF4444",
+                      marginBottom: "4px",
+                    }}>
+                      Error
+                    </div>
+                    <div style={{
+                      fontFamily: "DM Mono, monospace",
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                      wordBreak: "break-word",
+                    }}>
+                      {error}
+                    </div>
                   </div>
                 </div>
               )}
@@ -467,24 +759,31 @@ export default function EditorShell() {
               {/* FFmpeg log panel */}
               <LogPanel logs={logs} />
 
-              {/* ── Actual operation controls (trim, resize, compress, etc.) ── */}
-{mediaFile && (
-  <div style={{ width: "100%", maxWidth: "560px", marginTop: "8px", marginBottom: "8px", }}>
-    <OperationPanel
-      activeOp={activeOp}
-      setActiveOp={handleSetActiveOp}
-      media={mediaFile}
-      onProcess={processFile}
-      onMerge={mergeFiles}
-      busy={busy}
-    />
-  </div>
-)}
-
               {/* Change file */}
               <button
                 onClick={clearFile}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: "8px", color: "var(--color-text-muted)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "12px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 14px",
+                  background: "transparent",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "8px",
+                  color: "var(--color-text-muted)",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: "12px",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--color-border-bright)";
+                  e.currentTarget.style.color = "var(--color-text-secondary)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--color-border)";
+                  e.currentTarget.style.color = "var(--color-text-muted)";
+                }}
               >
                 <X size={12} /> Change file
               </button>
@@ -525,7 +824,6 @@ export default function EditorShell() {
               inset: 0,
               background: "rgba(0,0,0,0.7)",
               zIndex: 200,
-              display: "none",
             }}
           >
             <div
@@ -543,17 +841,45 @@ export default function EditorShell() {
                 overflowY: "auto",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <span style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "15px", fontWeight: 600, color: "#F1F5F9" }}>Operations</span>
-                <button onClick={() => setIsMobilePanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}>
+                <span style={{
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: "#F1F5F9",
+                }}>
+                  Operations
+                </span>
+                <button
+                  onClick={() => setIsMobilePanelOpen(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--color-text-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
                   <X size={18} />
                 </button>
               </div>
               <OperationPanel
                 activeOp={activeOp}
-                setActiveOp={(op) => { handleSetActiveOp(op); setIsMobilePanelOpen(false); }}
+                setActiveOp={(op) => {
+                  handleSetActiveOp(op);
+                  setIsMobilePanelOpen(false);
+                }}
                 media={mediaFile}
-                onProcess={async (c) => { await processFile(c); setIsMobilePanelOpen(false); }}
+                onProcess={async (c) => {
+                  await processFile(c);
+                  setIsMobilePanelOpen(false);
+                }}
                 onMerge={mergeFiles}
                 busy={busy}
               />
@@ -570,7 +896,6 @@ export default function EditorShell() {
         @media (max-width: 768px) {
           .side-panel { display: none !important; }
           .mobile-panel-toggle { display: flex !important; }
-          .mobile-panel-overlay { display: block !important; }
         }
       `}</style>
     </div>
