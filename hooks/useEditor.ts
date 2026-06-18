@@ -51,7 +51,9 @@ export function useEditor(): UseEditorReturn {
       setState((s) => ({ ...s, progress, progressMessage: message }));
     });
     orch.onLog((message) => {
-      setState((s) => ({ ...s, logs: [...s.logs.slice(-49), message] }));
+      // Keep last 100 lines; skip blank/redundant FFmpeg noise
+      if (!message.trim()) return;
+      setState((s) => ({ ...s, logs: [...s.logs.slice(-99), message] }));
     });
   }, []);
 
@@ -72,6 +74,12 @@ export function useEditor(): UseEditorReturn {
   }, []);
 
   const loadFile = useCallback(async (file: File) => {
+    // Revoke previous object URL before replacing
+    setState((s) => {
+      if (s.mediaFile?.url) URL.revokeObjectURL(s.mediaFile.url);
+      return s;
+    });
+
     const url = URL.createObjectURL(file);
     const probe = await orchestrator.current.probeMedia(file);
     const mediaFile: MediaFile = {
@@ -83,12 +91,16 @@ export function useEditor(): UseEditorReturn {
       url,
       ...probe,
     };
-    setState((s) => ({ ...s, mediaFile, result: null, error: null }));
+    setState((s) => ({ ...s, mediaFile, result: null, error: null, logs: [] }));
     await ensureLoaded();
   }, [ensureLoaded]);
 
   const processFile = useCallback(async (config: OperationConfig) => {
-    if (!state.mediaFile) return;
+    // Explicit error state when called without a file loaded
+    if (!state.mediaFile) {
+      setState((s) => ({ ...s, error: "No file loaded. Drop a file before running an operation." }));
+      return;
+    }
     setState((s) => ({
       ...s,
       isProcessing: true,
@@ -102,13 +114,17 @@ export function useEditor(): UseEditorReturn {
       ...s,
       isProcessing: false,
       result,
-      error: result.error ?? null,
-      orchestratorState: result.success ? "done" : "error",
+      error: "error" in result ? result.error ?? null : null,
+      orchestratorState: "success" in result || result.success ? "done" : "error",
       progress: result.success ? 100 : 0,
     }));
   }, [state.mediaFile]);
 
   const mergeFiles = useCallback(async (files: File[]) => {
+    if (files.length < 2) {
+      setState((s) => ({ ...s, error: "Select at least 2 files to merge." }));
+      return;
+    }
     setState((s) => ({
       ...s,
       isProcessing: true,
@@ -141,6 +157,7 @@ export function useEditor(): UseEditorReturn {
         result: null,
         progress: 0,
         error: null,
+        logs: [],
         orchestratorState: "ready",
       };
     });
