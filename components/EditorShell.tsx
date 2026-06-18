@@ -12,8 +12,6 @@ import { OperationConfig, OperationType, ProcessResult } from "@/lib/EditorOrche
 import OperationPanel from "@/components/OperationPanel";
 import MediaPreview from "@/components/MediaPreview";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatBytes(b: number): string {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
@@ -27,8 +25,6 @@ function isSplitResult(r: ProcessResult): r is Extract<ProcessResult, { part1Url
 function isFramesResult(r: ProcessResult): r is Extract<ProcessResult, { frameUrls: string[] }> {
   return r.success && "frameUrls" in r;
 }
-
-// ─── DropZone ─────────────────────────────────────────────────────────────────
 
 function DropZone({ onFile }: { onFile: (f: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -99,14 +95,12 @@ function DropZone({ onFile }: { onFile: (f: File) => void }) {
   );
 }
 
-// ─── LogPanel ─────────────────────────────────────────────────────────────────
 
 function LogPanel({ logs }: { logs: string[] }) {
   const [expanded, setExpanded] = useState(false);
 
   if (logs.length === 0) return null;
 
-  // Filter to only useful log lines: skip blanks, version noise, input stream dumps
   const useful = logs.filter((l) => {
     const t = l.trim();
     if (!t) return false;
@@ -193,7 +187,6 @@ function LogPanel({ logs }: { logs: string[] }) {
   );
 }
 
-// ─── ResultPanel ──────────────────────────────────────────────────────────────
 
 function ResultPanel({ result }: { result: ProcessResult }) {
   if (!result.success) return null;
@@ -271,7 +264,6 @@ function ResultPanel({ result }: { result: ProcessResult }) {
     );
   }
 
-  // Standard result
   if ("outputUrl" in result && result.outputUrl) {
     return (
       <div style={{
@@ -320,7 +312,6 @@ const downloadBtnStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-// ─── EditorShell ──────────────────────────────────────────────────────────────
 
 export default function EditorShell() {
   const searchParams = useSearchParams();
@@ -337,7 +328,6 @@ export default function EditorShell() {
 
   const busy = isLoading || isProcessing;
 
-  // Sync op change to URL for bookmarkability
   const handleSetActiveOp = useCallback((op: OperationType) => {
     setActiveOp(op);
     const params = new URLSearchParams(searchParams.toString());
