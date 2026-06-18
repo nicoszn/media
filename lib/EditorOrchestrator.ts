@@ -147,7 +147,7 @@ export class EditorOrchestrator {
     this.state = "loading";
     this.loadPromise = (async () => {
       try {
-        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.15/dist/umd";
         await this.ffmpeg.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
           wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
