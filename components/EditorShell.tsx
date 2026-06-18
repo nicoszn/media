@@ -467,6 +467,20 @@ export default function EditorShell() {
               {/* FFmpeg log panel */}
               <LogPanel logs={logs} />
 
+              {/* ── Actual operation controls (trim, resize, compress, etc.) ── */}
+{mediaFile && (
+  <div style={{ width: "100%", maxWidth: "560px", marginTop: "8px", marginBottom: "8px", }}>
+    <OperationPanel
+      activeOp={activeOp}
+      setActiveOp={handleSetActiveOp}
+      media={mediaFile}
+      onProcess={processFile}
+      onMerge={mergeFiles}
+      busy={busy}
+    />
+  </div>
+)}
+
               {/* Change file */}
               <button
                 onClick={clearFile}
