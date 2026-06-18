@@ -1,14 +1,12 @@
-import { Suspense } from "react";
-import EditorShell from "@/components/EditorShell";
+"use client";
 
-export const metadata = {
-  title: "Editor — VForge",
-  description: "Browser-native media editing tools",
-};
+import dynamic from "next/dynamic";
 
-export default function EditorPage() {
-  return (
-    <Suspense fallback={
+const EditorShell = dynamic(
+  () => import("@/components/EditorShell"),
+  {
+    ssr: false,
+    loading: () => (
       <div style={{
         minHeight: "100vh",
         display: "flex",
@@ -21,8 +19,10 @@ export default function EditorPage() {
       }}>
         Loading editor…
       </div>
-    }>
-      <EditorShell />
-    </Suspense>
-  );
+    ),
+  }
+);
+
+export default function EditorPage() {
+  return <EditorShell />;
 }
