@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import EditorShell from "@/components/editor/EditorShell";
+import EditorShell from "@/components/EditorShell";
 
 export const metadata = {
   title: "Editor — VForge",
