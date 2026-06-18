@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const bebasNeue = Bebas_Neue({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-display",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-body",
-});
-
 export const metadata: Metadata = {
-  title: "ShowVote — Vote for Your Favourite",
-  description: "Cast your votes for your favourite show participant. ₦100 = 1 Vote.",
+  title: "VForge — Professional Media Tools",
+  description:
+    "Browser-native media editing suite. Trim, convert, compress, flip, reverse and transform video and audio — entirely in your browser. No uploads, no servers.",
+  keywords: ["video editor", "media tools", "ffmpeg", "browser", "convert", "compress"],
+  openGraph: {
+    title: "VForge — Professional Media Tools",
+    description: "Browser-native media editing suite",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -24,8 +19,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${bebasNeue.variable} ${dmSans.variable}`}>
-      <body className=" antialiased">{children}</body>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }
