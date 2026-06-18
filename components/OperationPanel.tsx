@@ -38,6 +38,14 @@ interface Props {
   busy: boolean;
 }
 
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <label style={{
@@ -158,8 +166,14 @@ function TrimForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operati
   const [end, setEnd] = useState(media.duration ?? 60);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <TimeInput label="Start (seconds)" value={start} max={media.duration} onChange={setStart} />
-      <TimeInput label="End (seconds)" value={end} max={media.duration} onChange={setEnd} />
+      <div>
+        <Label>Start</Label>
+      <Slider value={start} min={0} max={media.duration ?? 60} step={0.1} onChange={setStart} format={formatTime} />
+        </div>
+      <div>
+        <Label>End</Label>
+      <Slider value={start} min={0} max={media.duration ?? 60} step={0.1} onChange={setEnd} format={formatTime} />
+        </div>
       <RunButton busy={busy} onClick={() => onRun({ type: "trim", trimStart: start, trimEnd: end })} />
     </div>
   );
@@ -169,7 +183,15 @@ function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operat
   const [at, setAt] = useState((media.duration ?? 60) / 2);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <TimeInput label="Split at (seconds)" value={at} max={media.duration} onChange={setAt} />
+  <Label>Split at</Label>
+  <Slider
+    value={at}
+    min={0}
+    max={media.duration ?? 60}
+    step={0.1}
+    onChange={setAt}
+    format={formatTime}
+  />
       <p style={{ fontFamily: "Inter, sans-serif", fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.6 }}>
         The first segment will be downloaded. Both parts are processed.
       </p>
