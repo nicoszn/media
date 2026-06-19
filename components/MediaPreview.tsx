@@ -5,6 +5,7 @@ import { Film, Music, Clock, HardDrive, Layers } from "lucide-react";
 
 interface Props {
   media: MediaFile;
+  variant?: "full" | "compact";
 }
 
 function formatDuration(s: number): string {
@@ -21,25 +22,26 @@ function formatBytes(b: number): string {
   return `${(b / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export default function MediaPreview({ media }: Props) {
+export default function MediaPreview({ media, variant = "full" }: Props) {
   const isVideo = media.type.startsWith("video/");
   const isAudio = media.type.startsWith("audio/");
+  const compact = variant === "compact";
 
   return (
-    <div style={{ width: "100%", maxWidth: "520px" }}>
+    <div style={{ width: "100%", maxWidth: compact ? "100%" : "560px" }}>
       {/* Preview */}
       <div style={{
         width: "100%",
         background: "#000",
-        borderRadius: "12px",
+        borderRadius: compact ? "10px" : "12px",
         overflow: "hidden",
         border: "1px solid var(--color-border)",
-        marginBottom: "16px",
+        marginBottom: compact ? "10px" : "16px",
         aspectRatio: isAudio ? "auto" : "16/9",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: isAudio ? "80px" : undefined,
+        minHeight: isAudio ? "72px" : undefined,
       }}>
         {isVideo && (
           <video
@@ -49,7 +51,7 @@ export default function MediaPreview({ media }: Props) {
           />
         )}
         {isAudio && (
-          <div style={{ width: "100%", padding: "20px" }}>
+          <div style={{ width: "100%", padding: compact ? "14px" : "20px" }}>
             <div style={{
               display: "flex",
               alignItems: "center",
@@ -57,26 +59,35 @@ export default function MediaPreview({ media }: Props) {
               marginBottom: "12px",
             }}>
               <div style={{
-                width: "40px",
-                height: "40px",
+                width: "36px",
+                height: "36px",
                 background: "rgba(124,58,237,0.15)",
-                borderRadius: "10px",
+                borderRadius: "9px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}>
-                <Music size={20} color="#7C3AED" />
+                <Music size={18} color="#7C3AED" />
               </div>
-              <div>
-                <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#F1F5F9" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#F1F5F9",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>
                   {media.name}
                 </div>
-                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>
+                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)" }}>
                   {media.type}
                 </div>
               </div>
             </div>
-            <audio src={media.url} controls style={{ width: "100%", height: "36px" }} />
+            <audio src={media.url} controls style={{ width: "100%", height: "32px" }} />
           </div>
         )}
         {!isVideo && !isAudio && (
@@ -85,10 +96,10 @@ export default function MediaPreview({ media }: Props) {
             flexDirection: "column",
             alignItems: "center",
             gap: "8px",
-            padding: "40px",
+            padding: "32px",
             color: "var(--color-text-muted)",
           }}>
-            <Film size={40} color="#475569" />
+            <Film size={32} color="#475569" />
             <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px" }}>
               Preview unavailable
             </span>
@@ -96,53 +107,55 @@ export default function MediaPreview({ media }: Props) {
         )}
       </div>
 
-      {/* Metadata */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-        gap: "8px",
-      }}>
-        {[
-          {
-            icon: HardDrive,
-            label: "Size",
-            value: formatBytes(media.size),
-            color: "#7C3AED",
-          },
-          ...(media.duration ? [{
-            icon: Clock,
-            label: "Duration",
-            value: formatDuration(media.duration),
-            color: "#06B6D4",
-          }] : []),
-          ...(media.width && media.height ? [{
-            icon: Layers,
-            label: "Resolution",
-            value: `${media.width}×${media.height}`,
-            color: "#10B981",
-          }] : []),
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div
-            key={label}
-            style={{
-              padding: "12px",
-              background: "var(--color-card)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-              <Icon size={12} color={color} />
-              <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {label}
-              </span>
+      {/* Metadata — full variant only */}
+      {!compact && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+          gap: "8px",
+        }}>
+          {[
+            {
+              icon: HardDrive,
+              label: "Size",
+              value: formatBytes(media.size),
+              color: "#7C3AED",
+            },
+            ...(media.duration ? [{
+              icon: Clock,
+              label: "Duration",
+              value: formatDuration(media.duration),
+              color: "#06B6D4",
+            }] : []),
+            ...(media.width && media.height ? [{
+              icon: Layers,
+              label: "Resolution",
+              value: `${media.width}×${media.height}`,
+              color: "#10B981",
+            }] : []),
+          ].map(({ icon: Icon, label, value, color }) => (
+            <div
+              key={label}
+              style={{
+                padding: "12px",
+                background: "var(--color-card)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                <Icon size={12} color={color} />
+                <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  {label}
+                </span>
+              </div>
+              <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#F1F5F9" }}>
+                {value}
+              </div>
             </div>
-            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#F1F5F9" }}>
-              {value}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
