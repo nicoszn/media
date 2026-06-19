@@ -617,6 +617,20 @@ export default function EditorShell() {
 
               <LogPanel logs={logs} />
 
+              {/* ── Actual operation controls (trim, resize, compress, etc.) ── */}
+{mediaFile && (
+  <div style={{ width: "100%", maxWidth: "560px", marginTop: "8px", marginBottom: "8px", }}>
+    <OperationPanel
+      activeOp={activeOp}
+      setActiveOp={handleSetActiveOp}
+      media={mediaFile}
+      onProcess={processFile}
+      onMerge={mergeFiles}
+      busy={busy}
+    />
+  </div>
+)}
+
               <button
                 onClick={clearFile}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: "8px", color: "var(--color-text-muted)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: "12px" }}
