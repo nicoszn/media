@@ -11,7 +11,7 @@ import {
 import { useEditor, HistoryEntry } from "@/hooks/useEditor";
 import {
   OperationConfig, OperationType, ProcessResult,
-  MultiSplitResult, SplitResult, FramesResult
+   SplitResult, FramesResult, MediaFile
 } from "@/lib/EditorOrchestrator";
 import OperationPanel from "@/components/OperationPanel";
 import MediaPreview from "@/components/MediaPreview";
@@ -32,12 +32,8 @@ function fmtTime(s: number): string {
 
 // ─── Type guards ──────────────────────────────────────────────────────────────
 
-function isMultiSplitResult(r: ProcessResult): r is MultiSplitResult {
-  return r.success && "segments" in r;
-}
-
 function isSplitResult(r: ProcessResult): r is SplitResult {
-  return r.success && "part1Url" in r;
+  return r.success && "segments" in r;
 }
 
 function isFramesResult(r: ProcessResult): r is FramesResult {
@@ -306,16 +302,11 @@ const downloadBtnStyle: React.CSSProperties = {
 function ResultPanel({ result }: { result: ProcessResult }) {
   if (!result.success) return null;
 
-  // MultiSplit — N segments, no chained preview (multiple outputs, no single "next" media)
-  if (isMultiSplitResult(result)) {
+  if (isSplitResult(result)) {
     return (
       <div style={{
-        width: "100%",
-        maxWidth: "560px",
-        background: "rgba(16,185,129,0.08)",
-        border: "1px solid rgba(16,185,129,0.3)",
-        borderRadius: "12px",
-        padding: "20px",
+        width: "100%", maxWidth: "560px", background: "rgba(16,185,129,0.08)",
+        border: "1px solid rgba(16,185,129,0.3)", borderRadius: "12px", padding: "20px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
           <CheckCircle2 size={18} color="#10B981" />
@@ -323,6 +314,9 @@ function ResultPanel({ result }: { result: ProcessResult }) {
             {result.segments.length} segments ready · {formatBytes(result.outputSize)}
           </span>
         </div>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: "11px", color: "var(--color-text-muted)", margin: "0 0 12px" }}>
+          Segment 1 is now active below. Select any segment to preview it or run another operation on it.
+        </p>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {result.segments.map((seg, i) => {
             const hue = 260 + i * 22;
@@ -351,41 +345,6 @@ function ResultPanel({ result }: { result: ProcessResult }) {
     );
   }
 
-  // Binary split — 2 parts, no chained preview
-  if (isSplitResult(result)) {
-    return (
-      <div style={{
-        width: "100%", maxWidth: "560px", background: "rgba(16,185,129,0.08)",
-        border: "1px solid rgba(16,185,129,0.3)", borderRadius: "12px", padding: "20px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-          <CheckCircle2 size={18} color="#10B981" />
-          <span style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#10B981" }}>
-            Split complete — 2 parts
-          </span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {[
-            { url: result.part1Url, name: result.part1Name, size: result.part1Size, label: "Part 1" },
-            { url: result.part2Url, name: result.part2Name, size: result.part2Size, label: "Part 2" },
-          ].map((p) => (
-            <div key={p.label} style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
-              padding: "10px 12px", background: "var(--color-card)", borderRadius: "8px", border: "1px solid var(--color-border)",
-            }}>
-              <div>
-                <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "12px", fontWeight: 600, color: "#F1F5F9" }}>{p.label}</div>
-                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)" }}>{formatBytes(p.size)}</div>
-              </div>
-              <a href={p.url} download={p.name} style={downloadBtnStyle}>
-                <Download size={13} /> Download
-              </a>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   // Extract frames — image grid, no chained preview
   if (isFramesResult(result)) {
