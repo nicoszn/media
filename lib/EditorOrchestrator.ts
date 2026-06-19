@@ -73,14 +73,19 @@ export interface OperationConfig {
   denoiseStrength?: number;
 }
 
+export interface SplitSegment {
+  url: string;
+  name: string;
+  size: number;
+  startTime: number;
+  endTime: number;
+}
+
 export interface SplitResult {
   success: true;
-  part1Url: string;
-  part1Name: string;
-  part1Size: number;
-  part2Url: string;
-  part2Name: string;
-  part2Size: number;
+  segments: SplitSegment[];
+  outputName: string;
+  outputSize: number;
 }
 
 export interface MultiSplitSegment {
@@ -267,7 +272,8 @@ export class EditorOrchestrator {
     return { success: true, outputUrl: url, outputName, outputSize: blob.size };
   }
 
-  // ─── split() — two output files, both returned ───────────────────────────────
+
+  // ─── split() — N cut points → N+1 segments, all returned ─────────────────────
 
   private async handleSplit(
     inputName: string,
@@ -275,48 +281,77 @@ export class EditorOrchestrator {
     config: OperationConfig
   ): Promise<SplitResult | StandardResult> {
     const ext = this.getExtension(media.name);
-    const splitAt = config.splitAt ?? (media.duration ? media.duration / 2 : 30);
-    const part1Name = `split_part1_${Date.now()}.${ext}`;
-    const part2Name = `split_part2_${Date.now()}.${ext}`;
+    const duration = media.duration ?? 0;
+
+    // Normalize input: either splitPoints[] (multisplit) or splitAt (legacy single cut)
+    const rawPoints = config.splitPoints && config.splitPoints.length > 0
+      ? config.splitPoints
+      : [config.splitAt ?? (duration ? duration / 2 : 30)];
+
+    // Sort, dedupe, and clamp cut points within file bounds
+    const cuts = [...new Set(rawPoints.map((t) => Math.max(0.1, Math.min(t, duration - 0.1))))]
+      .sort((a, b) => a - b);
+
+    // Derive N+1 segment boundaries from N cuts
+    const boundaries: Array<{ start: number; end: number }> = [];
+    let prev = 0;
+    for (const cut of cuts) {
+      if (cut - prev > 0.05) boundaries.push({ start: prev, end: cut });
+      prev = cut;
+    }
+    if (duration - prev > 0.05) boundaries.push({ start: prev, end: duration });
+
+    if (boundaries.length < 2) {
+      return { success: false, error: "Add at least one cut point to create multiple segments." };
+    }
+
+    const ts = Date.now();
+    const outputNames = boundaries.map((_, i) => `split_${ts}_seg${i + 1}.${ext}`);
+    const toClean = [inputName, ...outputNames];
 
     try {
-      await this.ffmpeg.exec([
-        "-threads", "1",
-        "-i", inputName,
-        "-t", String(splitAt),
-        "-c", "copy",
-        part1Name,
-      ]);
-      await this.ffmpeg.exec([
-        "-threads", "1",
-        "-i", inputName,
-        "-ss", String(splitAt),
-        "-c", "copy",
-        part2Name,
-      ]);
+      for (let i = 0; i < boundaries.length; i++) {
+        const { start, end } = boundaries[i];
+        this.progressCb?.(
+          Math.round((i / boundaries.length) * 90),
+          `Cutting segment ${i + 1} of ${boundaries.length}…`
+        );
+        await this.ffmpeg.exec([
+          "-threads", "1",
+          "-i", inputName,
+          "-ss", String(start),
+          "-to", String(end),
+          "-c", "copy",
+          outputNames[i],
+        ]);
+      }
 
-      const data1 = await this.ffmpeg.readFile(part1Name);
-      const bytes1: Uint8Array<ArrayBuffer> = new Uint8Array(data1 as unknown as ArrayBuffer);
-      const blob1 = new Blob([bytes1], { type: media.type });
+      const segments: SplitSegment[] = [];
+      for (let i = 0; i < boundaries.length; i++) {
+        const data = await this.ffmpeg.readFile(outputNames[i]);
+        const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(data as unknown as ArrayBuffer);
+        const blob = new Blob([bytes], { type: media.type });
+        segments.push({
+          url: URL.createObjectURL(blob),
+          name: outputNames[i],
+          size: blob.size,
+          startTime: boundaries[i].start,
+          endTime: boundaries[i].end,
+        });
+      }
 
-      const data2 = await this.ffmpeg.readFile(part2Name);
-      const bytes2: Uint8Array<ArrayBuffer> = new Uint8Array(data2 as unknown as ArrayBuffer);
-      const blob2 = new Blob([bytes2], { type: media.type });
-
-      await this.cleanup([inputName, part1Name, part2Name]);
+      await this.cleanup(toClean);
       this.state = "done";
+      this.progressCb?.(100, "Done");
 
       return {
         success: true,
-        part1Url: URL.createObjectURL(blob1),
-        part1Name,
-        part1Size: blob1.size,
-        part2Url: URL.createObjectURL(blob2),
-        part2Name,
-        part2Size: blob2.size,
+        segments,
+        outputName: `${segments.length} segments`,
+        outputSize: segments.reduce((acc, s) => acc + s.size, 0),
       };
     } catch (error) {
-      await this.cleanup([inputName, part1Name, part2Name]);
+      await this.cleanup(toClean);
       this.state = "error";
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
