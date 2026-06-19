@@ -7,13 +7,16 @@ import {
   OperationConfig,
   ProcessResult,
   OrchestratorState,
+  SplitSegment,
 } from "@/lib/EditorOrchestrator";
 
 const MAX_HISTORY = 5;
 
 export interface HistoryEntry {
-  media: MediaFile;
-  label: string; // e.g. "Original", "Trim", "Speed 1.5×"
+  media: MediaFile;          // the currently active view of this step
+  label: string;             // e.g. "Original", "Trim", "Split"
+  siblings?: MediaFile[];    // present only for split/multisplit — all segments
+  activeSiblingIndex?: number;
 }
 
 interface EditorState {
@@ -30,11 +33,13 @@ interface EditorState {
 
 interface UseEditorReturn extends Omit<EditorState, "history"> {
   history: HistoryEntry[];
-  mediaFile: MediaFile | null; // convenience accessor — top of stack
+  mediaFile: MediaFile | null;
   canUndo: boolean;
+  activeEntry: HistoryEntry | null;
   loadFile: (file: File) => Promise<void>;
   processFile: (config: OperationConfig) => Promise<void>;
   mergeFiles: (files: File[]) => Promise<void>;
+  selectSibling: (index: number) => void;
   undo: () => void;
   clearResult: () => void;
   clearFile: () => void;
@@ -59,6 +64,16 @@ const OP_LABELS: Record<string, string> = {
   rotate: "Rotate",
   denoise: "Denoise",
 };
+
+// Revoke every URL owned by a history entry — active media AND all siblings.
+// Siblings share no URLs with `media` except when activeSiblingIndex points
+// at the same segment, so this must walk the full sibling list independently.
+function revokeEntry(entry: HistoryEntry) {
+  URL.revokeObjectURL(entry.media.url);
+  entry.siblings?.forEach((s) => {
+    if (s.url !== entry.media.url) URL.revokeObjectURL(s.url);
+  });
+}
 
 export function useEditor(): UseEditorReturn {
   const orchestrator = useRef<EditorOrchestrator>(EditorOrchestrator.getInstance());
@@ -93,23 +108,19 @@ export function useEditor(): UseEditorReturn {
       await orchestrator.current.load();
       setState((s) => ({ ...s, isLoading: false, orchestratorState: "ready" }));
     } catch (e) {
-      setState((s) => ({
-        ...s,
-        isLoading: false,
-        error: String(e),
-        orchestratorState: "error",
-      }));
+      setState((s) => ({ ...s, isLoading: false, error: String(e), orchestratorState: "error" }));
     }
   }, []);
 
   // ─── Push a new entry, evicting the oldest beyond MAX_HISTORY ────────────────
+  // Eviction revokes the FULL entry (media + all siblings), not just one URL.
 
   const pushHistory = useCallback((entry: HistoryEntry) => {
     setState((s) => {
       const next = [...s.history, entry];
       if (next.length > MAX_HISTORY) {
         const evicted = next.shift();
-        if (evicted) URL.revokeObjectURL(evicted.media.url);
+        if (evicted) revokeEntry(evicted);
       }
       return { ...s, history: next };
     });
@@ -119,7 +130,7 @@ export function useEditor(): UseEditorReturn {
 
   const loadFile = useCallback(async (file: File) => {
     setState((s) => {
-      s.history.forEach((h) => URL.revokeObjectURL(h.media.url));
+      s.history.forEach(revokeEntry);
       return s;
     });
 
@@ -144,7 +155,7 @@ export function useEditor(): UseEditorReturn {
     await ensureLoaded();
   }, [ensureLoaded]);
 
-  // ─── Convert a processed blob URL back into a File for the next operation ────
+  // ─── Convert a processed blob URL back into a File for chained operations ────
 
   const resultToFile = useCallback(async (
     url: string,
@@ -156,6 +167,28 @@ export function useEditor(): UseEditorReturn {
     return new File([blob], name, { type: mimeType || blob.type });
   }, []);
 
+  // ─── Build a MediaFile from a SplitSegment (reuses the blob URL — no refetch) ─
+
+  const segmentToMediaFile = useCallback(async (
+    seg: SplitSegment,
+    fallbackType: string
+  ): Promise<MediaFile> => {
+    const probe = await orchestrator.current.probeMedia(
+      await resultToFile(seg.url, seg.name, fallbackType)
+    );
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      // `file` is reconstructed for potential future chained ops; `url` is
+      // reused directly so we don't create a duplicate blob for the same bytes.
+      file: new File([], seg.name, { type: fallbackType }),
+      name: seg.name,
+      size: seg.size,
+      type: fallbackType,
+      url: seg.url,
+      ...probe,
+    };
+  }, [resultToFile]);
+
   const processFile = useCallback(async (config: OperationConfig) => {
     const active = state.history[state.history.length - 1]?.media ?? null;
     if (!active) {
@@ -164,12 +197,7 @@ export function useEditor(): UseEditorReturn {
     }
 
     setState((s) => ({
-      ...s,
-      isProcessing: true,
-      error: null,
-      result: null,
-      progress: 0,
-      orchestratorState: "processing",
+      ...s, isProcessing: true, error: null, result: null, progress: 0, orchestratorState: "processing",
     }));
 
     const result = await orchestrator.current.process(active, config);
@@ -183,10 +211,32 @@ export function useEditor(): UseEditorReturn {
       progress: result.success ? 100 : 0,
     }));
 
-    // Only standard single-output results promote cleanly into the next step.
-    // Split / multisplit / frame extraction produce multiple files — those stay
-    // as downloadable results without becoming the new active media.
-    if (result.success && "outputUrl" in result && result.outputUrl && "outputName" in result) {
+    if (!result.success) return;
+
+    // ── Split result: build one MediaFile per segment, push ONE history entry
+    //    holding all of them as siblings. The first segment is active by default.
+    if ("segments" in result) {
+      try {
+        const siblingMedia = await Promise.all(
+          result.segments.map((seg) => segmentToMediaFile(seg, active.type))
+        );
+        pushHistory({
+          media: siblingMedia[0],
+          label: OP_LABELS.split,
+          siblings: siblingMedia,
+          activeSiblingIndex: 0,
+        });
+      } catch {
+        // Result remains downloadable even if promotion into history fails.
+      }
+      return;
+    }
+
+    // ── Frame extraction: images, not chainable video/audio — no promotion ────
+    if ("frameUrls" in result) return;
+
+    // ── Standard single-output result — promote directly ──────────────────────
+    if ("outputUrl" in result && result.outputUrl && "outputName" in result) {
       try {
         const promoted = await resultToFile(
           result.outputUrl,
@@ -200,16 +250,15 @@ export function useEditor(): UseEditorReturn {
           name: promoted.name,
           size: promoted.size,
           type: promoted.type || active.type,
-          url: result.outputUrl, // reuse — avoid creating a duplicate blob URL
+          url: result.outputUrl,
           ...probe,
         };
         pushHistory({ media: newMedia, label: OP_LABELS[config.type] ?? config.type });
       } catch {
-        // If promotion fails, the result is still shown/downloadable —
-        // it just won't become the active media for the next operation.
+        // non-fatal
       }
     }
-  }, [state.history, pushHistory, resultToFile]);
+  }, [state.history, pushHistory, resultToFile, segmentToMediaFile]);
 
   const mergeFiles = useCallback(async (files: File[]) => {
     if (files.length < 2) {
@@ -217,12 +266,7 @@ export function useEditor(): UseEditorReturn {
       return;
     }
     setState((s) => ({
-      ...s,
-      isProcessing: true,
-      error: null,
-      result: null,
-      progress: 0,
-      orchestratorState: "processing",
+      ...s, isProcessing: true, error: null, result: null, progress: 0, orchestratorState: "processing",
     }));
     const result = await orchestrator.current.mergeMultiple(files);
     setState((s) => ({
@@ -249,19 +293,36 @@ export function useEditor(): UseEditorReturn {
         };
         pushHistory({ media: newMedia, label: "Merge" });
       } catch {
-        // non-fatal — merge result remains downloadable
+        // non-fatal
       }
     }
   }, [pushHistory, resultToFile]);
 
-  // ─── Undo — pop the stack, revoke the discarded entry's URL ──────────────────
+  // ─── selectSibling — switch which segment is active WITHOUT a new stack push.
+  //     No URLs are created or revoked here; all siblings are already alive.
+
+  const selectSibling = useCallback((index: number) => {
+    setState((s) => {
+      const top = s.history[s.history.length - 1];
+      if (!top?.siblings || index < 0 || index >= top.siblings.length) return s;
+      const next = [...s.history];
+      next[next.length - 1] = {
+        ...top,
+        media: top.siblings[index],
+        activeSiblingIndex: index,
+      };
+      return { ...s, history: next, result: null, error: null };
+    });
+  }, []);
+
+  // ─── Undo — pop the stack, revoke the FULL discarded entry (media + siblings) ─
 
   const undo = useCallback(() => {
     setState((s) => {
       if (s.history.length <= 1) return s;
       const next = [...s.history];
       const removed = next.pop();
-      if (removed) URL.revokeObjectURL(removed.media.url);
+      if (removed) revokeEntry(removed);
       return { ...s, history: next, result: null, error: null };
     });
   }, []);
@@ -272,30 +333,23 @@ export function useEditor(): UseEditorReturn {
 
   const clearFile = useCallback(() => {
     setState((s) => {
-      s.history.forEach((h) => URL.revokeObjectURL(h.media.url));
-      return {
-        ...s,
-        history: [],
-        result: null,
-        progress: 0,
-        error: null,
-        logs: [],
-        orchestratorState: "ready",
-      };
+      s.history.forEach(revokeEntry);
+      return { ...s, history: [], result: null, progress: 0, error: null, logs: [], orchestratorState: "ready" };
     });
   }, []);
 
-  const mediaFile = state.history.length > 0
-    ? state.history[state.history.length - 1].media
-    : null;
+  const activeEntry = state.history.length > 0 ? state.history[state.history.length - 1] : null;
+  const mediaFile = activeEntry?.media ?? null;
 
   return {
     ...state,
     mediaFile,
+    activeEntry,
     canUndo: state.history.length > 1,
     loadFile,
     processFile,
     mergeFiles,
+    selectSibling,
     undo,
     clearResult,
     clearFile,
