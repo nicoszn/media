@@ -40,6 +40,55 @@ function isFramesResult(r: ProcessResult): r is FramesResult {
   return r.success && "frameUrls" in r;
 }
 
+// ─── SegmentPicker ────────────────────────────────────────────────────────────
+// Shown whenever the active history entry has siblings (i.e. it came from a
+// split). Lets the user switch which segment is the "active" media without
+// re-running anything — selectSibling just repoints state, no new blobs.
+
+function SegmentPicker({ entry, onSelect }: {
+  entry: HistoryEntry;
+  onSelect: (index: number) => void;
+}) {
+  if (!entry.siblings || entry.siblings.length < 2) return null;
+
+  return (
+    <div style={{
+      width: "100%",
+      maxWidth: "560px",
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "6px",
+      padding: "10px",
+      background: "var(--color-card)",
+      border: "1px solid var(--color-border)",
+      borderRadius: "8px",
+    }}>
+      {entry.siblings.map((seg, i) => {
+        const isActive = i === entry.activeSiblingIndex;
+        return (
+          <button
+            key={seg.id}
+            onClick={() => onSelect(i)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "100px",
+              border: `1px solid ${isActive ? "#7C3AED" : "var(--color-border)"}`,
+              background: isActive ? "rgba(124,58,237,0.18)" : "transparent",
+              color: isActive ? "#8B5CF6" : "var(--color-text-secondary)",
+              fontFamily: "DM Mono, monospace",
+              fontSize: "11px",
+              cursor: "pointer",
+            }}
+          >
+            Segment {i + 1}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
 // ─── DropZone ─────────────────────────────────────────────────────────────────
 
 function DropZone({ onFile }: { onFile: (f: File) => void }) {
@@ -433,9 +482,9 @@ export default function EditorShell() {
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
 
   const {
-    mediaFile, history, canUndo, result, progress, progressMessage,
+    mediaFile, history, activeEntry, canUndo, result, progress, progressMessage,
     isLoading, isProcessing, error, logs,
-    loadFile, processFile, mergeFiles, undo, clearResult, clearFile,
+    loadFile, processFile, mergeFiles, selectSibling, undo, clearResult, clearFile,
   } = useEditor();
 
   const busy = isLoading || isProcessing;
@@ -531,6 +580,11 @@ export default function EditorShell() {
             <>
               {/* History strip + Undo — only shows once an operation has run */}
               <HistoryStrip history={history} canUndo={canUndo} onUndo={undo} />
+
+              {/* Segment picker — only shows when the active step is a split */}
+              {activeEntry && (
+                <SegmentPicker entry={activeEntry} onSelect={selectSibling} />
+              )}
 
               <MediaPreview media={mediaFile} />
 
