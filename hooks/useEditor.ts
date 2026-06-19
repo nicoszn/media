@@ -167,26 +167,7 @@ export function useEditor(): UseEditorReturn {
     return new File([blob], name, { type: mimeType || blob.type });
   }, []);
 
- // REPLACE the segmentToMediaFile function:
-  const segmentToMediaFile = useCallback(async (
-    seg: SplitSegment,
-    fallbackType: string
-  ): Promise<MediaFile> => {
-    const probe = await orchestrator.current.probeMedia(
-      await resultToFile(seg.url, seg.name, fallbackType)
-    );
-    return {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      file: new File([], seg.name, { type: fallbackType }),
-      name: seg.name,
-      size: seg.size,
-      type: fallbackType,
-      url: seg.url,
-      ...probe,
-    };
-  }, [resultToFile]);
-
-// WITH:
+ 
   const segmentToMediaFile = useCallback(async (
     seg: SplitSegment,
     fallbackType: string
