@@ -167,8 +167,7 @@ export function useEditor(): UseEditorReturn {
     return new File([blob], name, { type: mimeType || blob.type });
   }, []);
 
-  // ─── Build a MediaFile from a SplitSegment (reuses the blob URL — no refetch) ─
-
+ // REPLACE the segmentToMediaFile function:
   const segmentToMediaFile = useCallback(async (
     seg: SplitSegment,
     fallbackType: string
@@ -178,8 +177,6 @@ export function useEditor(): UseEditorReturn {
     );
     return {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      // `file` is reconstructed for potential future chained ops; `url` is
-      // reused directly so we don't create a duplicate blob for the same bytes.
       file: new File([], seg.name, { type: fallbackType }),
       name: seg.name,
       size: seg.size,
@@ -189,6 +186,26 @@ export function useEditor(): UseEditorReturn {
     };
   }, [resultToFile]);
 
+// WITH:
+  const segmentToMediaFile = useCallback(async (
+    seg: SplitSegment,
+    fallbackType: string
+  ): Promise<MediaFile> => {
+    const realFile = await resultToFile(seg.url, seg.name, fallbackType);
+    const probe = await orchestrator.current.probeMedia(realFile);
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file: realFile,
+      name: seg.name,
+      size: seg.size,
+      type: fallbackType,
+      url: seg.url, // reuse the existing blob URL — avoids creating a duplicate
+      ...probe,
+    };
+  }, [resultToFile]);
+
+
+  
   const processFile = useCallback(async (config: OperationConfig) => {
     const active = state.history[state.history.length - 1]?.media ?? null;
     if (!active) {
