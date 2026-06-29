@@ -47,7 +47,7 @@ export default function Navbar() {
       </div>
 
       <Link
-        href="/editor"
+        href="#tools"
         style={{
           fontFamily: "Space Grotesk, sans-serif", fontSize: "14px", fontWeight: 600, color: "#fff",
           textDecoration: "none", padding: "8px 20px",
@@ -55,7 +55,7 @@ export default function Navbar() {
           border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 20px rgba(124,58,237,0.2)",
         }}
       >
-        Open Editor
+        Open Tools
       </Link>
 
       <style>{`
