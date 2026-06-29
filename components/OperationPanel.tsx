@@ -555,9 +555,11 @@ function AspectForm({ onRun, busy }: { onRun: (c: OperationConfig) => void; busy
   );
 }
 
-function FormatForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: OperationConfig) => void; busy: boolean }) {
+function FormatForm({ media, onRun, busy, defaultFormat }: {
+  media: MediaFile; onRun: (c: OperationConfig) => void; busy: boolean; defaultFormat?: string;
+}) {
   const isAudio = media.type.startsWith("audio/");
-  const [fmt, setFmt] = useState(isAudio ? "mp3" : "mp4");
+  const [fmt, setFmt] = useState(defaultFormat ?? (isAudio ? "mp3" : "mp4"));
   const videoFmts = [
     { value: "mp4", label: "MP4 (H.264)" },
     { value: "webm", label: "WebM (VP8)" },
