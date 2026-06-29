@@ -567,6 +567,24 @@ export class EditorOrchestrator {
       case "format_convert": {
         const outExt = config.outputFormat ?? "mp4";
         const outputName = `${base}_converted.${outExt}`;
+
+        // GIF needs an explicit filter chain — without it FFmpeg defaults to
+        // source resolution/framerate and a generic palette, producing huge,
+        // banded output. This caps fps and width, and generates a custom
+        // palette from the actual clip for far better color fidelity.
+        if (outExt === "gif") {
+          const fps = config.targetFps ?? 12;
+          const maxWidth = config.width ?? 480;
+          return {
+            outputName,
+            args: [
+              "-i", inputName,
+              "-vf", `fps=${fps},scale=${maxWidth}:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse`,
+              outputName,
+            ],
+          };
+        }
+
         return { outputName, args: ["-i", inputName, outputName] };
       }
 
