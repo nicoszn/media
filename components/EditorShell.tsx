@@ -477,7 +477,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
         </div>
       </header>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", alignItems: "flex-start }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", alignItems: "flex-start" }}>
 
         <div style={{
           flex: "0 1 auto", display: "flex", flexDirection: "column", alignItems: "center",
