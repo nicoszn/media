@@ -161,7 +161,7 @@ export default function Navbar() {
               cursor: "pointer",
             }}
           >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+           Menu {menuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </nav>
@@ -222,7 +222,7 @@ export default function Navbar() {
               borderRadius: "8px",
               textAlign: "center",
               marginTop: "12px",
-              display: "block",
+              display: "hidden",
             }}
           >
             All Tools
