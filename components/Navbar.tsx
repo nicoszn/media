@@ -144,25 +144,31 @@ export default function Navbar() {
 
           {/* Mobile menu toggle */}
           <button
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((x) => !x)}
-            className="mobile-menu-btn"
-            style={{
-              display: "none",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "36px",
-              height: "36px",
-              background: "transparent",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              color: "var(--color-text-secondary)",
-              cursor: "pointer",
-            }}
-          >
-           Menu {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+  aria-label={menuOpen ? "Close menu" : "Open menu"}
+  aria-expanded={menuOpen}
+  onClick={() => setMenuOpen((x) => !x)}
+  className="mobile-menu-btn"
+  style={{
+    display: "none",            /* Overridden in your CSS media queries */
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",                 /* Adds space between the word "Menu" and the icon */
+    height: "36px",             /* Keep the height consistent with your header */
+    padding: "0 12px",          /* Added side padding instead of a fixed width */
+    background: "transparent",
+    border: "1px solid var(--color-border)",
+    borderRadius: "8px",
+    color: "var(--color-text-secondary)",
+    fontFamily: "Inter, sans-serif", /* Matches your header typography */
+    fontSize: "13px",           /* Matches your header text size */
+    fontWeight: 500,
+    cursor: "pointer",
+  }}
+>
+  <span>Menu</span>
+  {menuOpen ? <X size={18} /> : <Menu size={18} />}
+</button>
+
         </div>
       </nav>
 
