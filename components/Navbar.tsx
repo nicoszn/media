@@ -117,6 +117,7 @@ export default function Navbar() {
           <Link
             href="/editor"
             style={{
+              display: "hidden"
               fontFamily: "Space Grotesk, sans-serif",
               fontSize: "13px",
               fontWeight: 600,
