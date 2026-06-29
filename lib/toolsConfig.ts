@@ -97,7 +97,6 @@ export const TOOLS_CONFIG: ToolConfig[] = [
     ],
     related: ["convert-video-to-mp3", "trim-video", "video-to-gif"],
   },
-  {// REPLACE the entire "convert-video" entry (slug, title, everything) with two entries:
 
   {
     slug: "convert-video-to-mp3",
