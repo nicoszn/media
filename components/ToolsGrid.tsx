@@ -20,7 +20,7 @@ const COLOR_MAP: Record<string, string> = {
 
 export default function ToolsGrid() {
   return (
-    <section id="tools" style={{ padding: "100px 24px" }}>
+    <section id="tools" style={{ padding: "100px 24px 50px" }}>
       <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: "56px" }}>
           <span style={{
@@ -30,7 +30,7 @@ export default function ToolsGrid() {
             letterSpacing: "0.12em",
             textTransform: "uppercase",
           }}>
-            // tool suite
+           Tool suite
           </span>
           <h2 style={{
             fontFamily: "Space Grotesk, sans-serif",
