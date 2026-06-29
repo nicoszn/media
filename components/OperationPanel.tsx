@@ -576,13 +576,35 @@ function FormatForm({ media, onRun, busy, defaultFormat }: {
     { value: "flac", label: "FLAC" },
   ];
   const opts = isAudio ? audioFmts : [...videoFmts, ...audioFmts];
+  const [gifWidth, setGifWidth] = useState(480);
+  const [gifFps, setGifFps] = useState(12);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <div>
         <Label>Output format</Label>
         <Select value={fmt} options={opts} onChange={setFmt} />
       </div>
-      <RunButton busy={busy} onClick={() => onRun({ type: "format_convert", outputFormat: fmt })} />
+      {fmt === "gif" && (
+        <>
+          <div>
+            <Label>Max width (px) — controls file size</Label>
+            <Slider value={gifWidth} min={160} max={960} step={40} onChange={setGifWidth} />
+          </div>
+          <div>
+            <Label>Frame rate (fps)</Label>
+            <Slider value={gifFps} min={5} max={24} step={1} onChange={setGifFps} />
+          </div>
+        </>
+      )}
+      <RunButton
+        busy={busy}
+        onClick={() => onRun({
+          type: "format_convert",
+          outputFormat: fmt,
+          ...(fmt === "gif" ? { width: gifWidth, targetFps: gifFps } : {}),
+        })}
+      />
     </div>
   );
 }
@@ -693,7 +715,7 @@ function RunButton({ busy, onClick, disabled }: {
 
 // ─── Main Panel ────────────────────────────────────────────────────────────────
 
-export default function OperationPanel({ activeOp, setActiveOp, media, onProcess, onMerge, busy }: Props) {
+export default function OperationPanel({ activeOp, setActiveOp, media, onProcess, onMerge, busy, lockedOp, defaultFormat  }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Tool selector */}
@@ -798,7 +820,7 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
           />
         )}
         {activeOp === "aspect_ratio" && <AspectForm onRun={onProcess} busy={busy} />}
-        {activeOp === "format_convert" && <FormatForm media={media} onRun={onProcess} busy={busy} />}
+        {activeOp === "format_convert" && <FormatForm media={media} onRun={onProcess} busy={busy} defaultFormat={defaultFormat} />}
         {activeOp === "volume" && <VolumeForm onRun={onProcess} busy={busy} />}
         {activeOp === "rotate" && <RotateForm onRun={onProcess} busy={busy} />}
         {activeOp === "denoise" && <DenoiseForm onRun={onProcess} busy={busy} />}
