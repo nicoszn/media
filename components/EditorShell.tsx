@@ -20,6 +20,7 @@ interface EditorShellProps {
   /** When set, locks the editor to a single operation and hides the tool switcher.
    *  Used by dedicated SEO landing pages (e.g. /split-video → lockedOp="split"). */
   lockedOp?: OperationType;
+  defaultFormat?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -390,7 +391,7 @@ function ResultPanel({ result }: { result: ProcessResult }) {
 
 // ─── EditorShell ──────────────────────────────────────────────────────────────
 
-export default function EditorShell({ lockedOp }: EditorShellProps) {
+export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialOp = lockedOp ?? ((searchParams.get("op") ?? "trim") as OperationType);
@@ -555,6 +556,7 @@ export default function EditorShell({ lockedOp }: EditorShellProps) {
               onMerge={mergeFiles}
               busy={busy}
               lockedOp={lockedOp}
+              defaultFormat={defaultFormat}
             />
           </div>
         )}
