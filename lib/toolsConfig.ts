@@ -23,6 +23,9 @@ export interface ToolConfig {
   faqs: ToolFaq[];
   /** Slugs of related tools to cross-link (internal linking signal) */
   related: string[];
+  /** Pre-selects a value in the operation form, e.g. "mp3"/"gif" for
+   *  format_convert. Only consumed when op === "format_convert". */
+  defaultFormat?: string;
 }
 
 export const TOOLS_CONFIG: ToolConfig[] = [
@@ -58,7 +61,7 @@ export const TOOLS_CONFIG: ToolConfig[] = [
         answer: "Yes — after a split completes, you can select any resulting segment and immediately run another tool on it (compress, convert, trim) without re-uploading.",
       },
     ],
-    related: ["trim-video", "merge-video", "compress-video"],
+    related: ["trim-video", "compress-video", "video-to-gif"],
   },
   {
     slug: "compress-video",
@@ -92,41 +95,79 @@ export const TOOLS_CONFIG: ToolConfig[] = [
         answer: "The audio track is re-encoded to AAC at 128kbps by default alongside the video, which is generally not perceptible for spoken or non-critical audio.",
       },
     ],
-    related: ["convert-video", "resize-video", "trim-video"],
+    related: ["convert-video-to-mp3", "trim-video", "video-to-gif"],
   },
+  {// REPLACE the entire "convert-video" entry (slug, title, everything) with two entries:
+
   {
-    slug: "convert-video",
+    slug: "convert-video-to-mp3",
     op: "format_convert",
-    label: "Convert Video",
-    title: "Convert Video Format Online — MP4, WebM, MOV, MKV, and More",
+    label: "Convert Video to MP3",
+    title: "Convert Video to MP3 Online — Extract Audio in Your Browser",
     metaDescription:
-      "Convert video and audio between formats (MP4, WebM, MOV, AVI, MKV, MP3, WAV) directly in your browser. No upload, no software install, no conversion limits.",
-    tagline: "Convert between video and audio formats locally — your file never touches a server.",
+      "Extract the audio track from any video and save it as an MP3 directly in your browser. No upload, no software, no conversion queue — done in seconds.",
+    tagline: "Pull the audio out of a video file and save it as MP3 — nothing leaves your device.",
     intro: [
-      "Format conversion changes the container and/or codec a file is wrapped in — for example, turning a .MOV from an iPhone into an .MP4 that's universally playable, or pulling the audio out of a video entirely as an .MP3. Different platforms, editors, and devices each have format preferences, and it's common to need the same source file in two or three different wrappers.",
-      "Desktop conversion software requires an install; web-based converters that process server-side require an upload and a queue. This tool does neither — the conversion happens with FFmpeg running as WebAssembly directly in the tab you have open, so the file goes from your device's disk to your device's disk, with the actual transcoding happening entirely in between.",
-      "Both video-to-video conversions (MP4 ↔ WebM ↔ MOV ↔ AVI ↔ MKV) and video-to-audio extraction (to MP3, WAV, AAC, OGG, FLAC) are supported from the same control.",
+      "Converting video to MP3 means discarding the picture entirely and keeping just the sound — useful any time the visual part of a file is irrelevant to what you actually need: a recorded interview, a lecture, a music video where you only want the track, or a voice memo someone sent as a video by mistake.",
+      "Most 'video to mp3' sites online are upload-based converters that queue your file on a server, sometimes for several minutes, and many bury the actual download link behind ads or watermarks. This tool runs the conversion locally using FFmpeg compiled to WebAssembly — the moment you drop a file, the audio extraction happens in your browser tab, with no queue and no file ever leaving your device.",
+      "The output is a standard MP3 at 192kbps, which is a solid middle ground between file size and audio fidelity for spoken word and most music.",
     ],
     useCases: [
-      { title: "Fixing iPhone/Mac compatibility", description: "Convert a .MOV file to .MP4 so it plays correctly on Windows, Android, or in a web upload form that rejects QuickTime files." },
-      { title: "Extracting audio for a podcast clip", description: "Pull just the audio track out of a recorded video interview as a clean .MP3, without needing separate audio software." },
-      { title: "Preparing for a specific editor", description: "Convert footage into the codec/container a particular NLE or platform expects before importing it into a larger project." },
+      { title: "Saving a podcast-style recording", description: "Someone records a conversation on video by default (e.g. a phone camera) but you only need the audio — extract it as a clean MP3 without re-recording anything." },
+      { title: "Pulling music from a video file", description: "Get just the audio track from a downloaded video so you can listen to it without the video player open." },
+      { title: "Archiving voice notes sent as video", description: "Convert a video-format voice message into a small MP3 you can actually file away or forward without the bulky video container." },
     ],
     faqs: [
       {
-        question: "Does converting between formats lose quality?",
-        answer: "Converting between two video codecs (e.g. MOV's H.264 to WebM's VP8) involves re-encoding and will have some quality impact, though it's generally minor at default settings. Container-only changes with the same codec are lossless.",
+        question: "What bitrate is the output MP3?",
+        answer: "192kbps by default, which holds up well for spoken word, podcasts, and most music without producing an unnecessarily large file.",
       },
       {
-        question: "Can I convert a video straight to MP3?",
-        answer: "Yes — select an audio format as the output and the tool extracts and encodes just the audio track, discarding video entirely.",
+        question: "Does this work on any video format?",
+        answer: "Yes — MP4, MOV, WebM, AVI, MKV, and most other common containers are all supported as input, since the audio extraction step only cares about the audio stream inside the file.",
       },
       {
-        question: "Which format should I pick if I'm not sure?",
-        answer: "MP4 with H.264 has the widest compatibility across devices, browsers, and platforms, and is the safest default unless something specific (e.g. an editor that prefers MOV) tells you otherwise.",
+        question: "Is any video quality lost in the process?",
+        answer: "There's no video output at all — the video stream is discarded entirely, not re-encoded, so there's nothing to lose quality on. Only the original audio stream is encoded into the MP3.",
       },
     ],
-    related: ["compress-video", "trim-video", "split-video"],
+    related: ["compress-video", "convert-video-to-mp3", "trim-video"],
+    defaultFormat: "mp3",
+  },
+  {
+    slug: "video-to-gif",
+    op: "format_convert",
+    label: "Convert Video to GIF",
+    title: "Video to GIF Converter — Create GIFs Online, No Upload",
+    metaDescription:
+      "Turn any video clip into a high-quality GIF in your browser. Control frame rate and size to balance quality against file size. No upload, no watermark.",
+    tagline: "Turn a video clip into a shareable GIF — frame rate and size under your control.",
+    intro: [
+      "A GIF is a short, looping, soundless clip that plays automatically wherever it's embedded — in a chat app, a forum post, a README, a tweet — without needing a video player. Converting a video clip into one means re-encoding it into GIF's specific format: a limited color palette and no audio track, which is why naive conversions often come out looking banded or oddly colored.",
+      "The biggest mistake most video-to-GIF tools make is ignoring resolution and frame rate entirely — a 1080p, 30fps source converted directly produces a GIF that's enormous (sometimes hundreds of megabytes) for a few seconds of footage, because GIF compression doesn't scale the way video codecs do. This tool exposes both controls directly: capping the frame rate (12fps is usually visually smooth enough) and the output width keeps file size sane without you needing to understand the underlying codec tradeoffs.",
+      "Color quality is handled with a two-pass approach — generating a custom palette from your specific clip rather than using a generic one — which is the same technique recommended in FFmpeg's own documentation for producing GIFs that don't look washed out or banded.",
+    ],
+    useCases: [
+      { title: "Reaction or meme clips", description: "Turn a short, funny moment from a longer video into a GIF you can drop directly into a chat or forum post." },
+      { title: "Product or UI demos", description: "Convert a short screen recording into a GIF that auto-plays inline in documentation or a README, without requiring a video player." },
+      { title: "Highlighting a moment from gameplay or sports footage", description: "Pull a few seconds of a clutch play or great moment out as a GIF, sized appropriately for sharing rather than a full video upload." },
+    ],
+    faqs: [
+      {
+        question: "Why is my GIF file size so much larger than the source clip?",
+        answer: "GIF compression is much less efficient than modern video codecs, so even a few seconds can produce a large file at full resolution and frame rate. Lowering the width (try 480px or less) and frame rate (10-15fps) dramatically reduces size with minimal visible quality loss for most use cases.",
+      },
+      {
+        question: "Why does my GIF have no audio?",
+        answer: "The GIF format has no audio support at all — it's a fundamental limitation of the format, not something this tool strips out. If audio matters, an MP4 or WebM clip is the right format instead.",
+      },
+      {
+        question: "What's a good frame rate for a smooth-looking GIF?",
+        answer: "10-15fps looks smooth for most casual content and keeps file size reasonable. Going above 20fps rarely improves perceived smoothness enough to justify the size increase for typical GIF use cases like chat or social sharing.",
+      },
+    ],
+    related: ["trim-video", "split-video", "compress-video"],
+    defaultFormat: "gif",
   },
   {
     slug: "trim-video",
@@ -160,7 +201,7 @@ export const TOOLS_CONFIG: ToolConfig[] = [
         answer: "Yes — the trimmed result plays directly in the browser via an inline preview the moment processing finishes, before you decide to download it or run another operation on it.",
       },
     ],
-    related: ["split-video", "compress-video", "convert-video"],
+    related: ["split-video", "compress-video", "convert-video-to-mp3"],
   },
 ];
 
