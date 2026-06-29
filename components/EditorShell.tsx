@@ -557,21 +557,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
 
        
 
-        {/* Locked single-op panel — no tool grid, just the config form */}
-        {mediaFile && lockedOp && (
-          <div className="side-panel locked-panel" style={{ width: "340px", flexShrink: 0, borderLeft: "1px solid var(--color-border)", overflowY: "auto", padding: "24px 20px" }}>
-            <OperationPanel
-              activeOp={activeOp}
-              setActiveOp={handleSetActiveOp}
-              media={mediaFile}
-              onProcess={processFile}
-              onMerge={mergeFiles}
-              busy={busy}
-              lockedOp={lockedOp}
-              defaultFormat={defaultFormat}
-            />
-          </div>
-        )}
+        
 
         {mediaFile && isMobilePanelOpen && !lockedOp && (
           <div className="mobile-panel-overlay" onClick={() => setIsMobilePanelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200 }}>
