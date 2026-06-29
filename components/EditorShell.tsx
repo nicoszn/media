@@ -482,7 +482,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
         <div style={{
           flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: !mediaFile ? "center" : "flex-start",
-          padding: "8px 24px", overflowY: "auto", gap: "16px", minWidth: 0,
+          padding: "32px 24px", overflowY: "auto", gap: "4px", minWidth: 0,
         }}>
           {!mediaFile ? (
             <div style={{ textAlign: "center", width: "100%" }}>
