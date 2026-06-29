@@ -36,6 +36,10 @@ interface Props {
   onProcess: (config: OperationConfig) => void;
   onMerge: (files: File[]) => void;
   busy: boolean;
+  lockedOp?: OperationType;
+  /** Pre-selects a value in the locked operation's form — e.g. "gif" for
+   *  format_convert on a /video-to-gif page. Ignored by other operations. */
+  defaultFormat?: string;
 }
 
 function formatTime(seconds: number): string {
