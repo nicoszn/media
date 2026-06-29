@@ -109,7 +109,7 @@ export default async function ToolPage({ params }: PageProps) {
             overflow: "hidden",
             marginBottom: "56px",
           }}>
-            <EditorShell lockedOp={tool.op} />
+            <EditorShell lockedOp={tool.op} defaultFormat={tool.defaultFormat} />
           </div>
 
           {/* Intro copy — distinct per tool, not templated */}
