@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react"; // 1. Imported Suspense
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -109,8 +110,11 @@ export default async function ToolPage({ params }: PageProps) {
             overflow: "hidden",
             marginBottom: "56px",
           }}>
+            {/* 3. Wrapped EditorShell in Suspense to resolve the build error */}
+        <Suspense fallback={<div className="h-[600px] w-full flex items-center justify-center bg-zinc-900 rounded-xl text-zinc-400">Loading tool interface...</div>}>
             <EditorShell lockedOp={tool.op} defaultFormat={tool.defaultFormat} />
           </div>
+       </Suspense>
 
           {/* Intro copy — distinct per tool, not templated */}
           <section style={{ marginBottom: "48px" }}>
