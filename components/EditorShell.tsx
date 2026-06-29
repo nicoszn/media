@@ -477,10 +477,10 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
         </div>
       </header>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", alignItems: "flex-start }}>
 
         <div style={{
-          flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+          flex: "0 1 auto", display: "flex", flexDirection: "column", alignItems: "center",
       justifyContent: "flex-start",
           // justifyContent: !mediaFile ? "center" : "flex-start",
           padding: "32px 24px", overflowY: "auto", gap: "4px", minWidth: 0,
