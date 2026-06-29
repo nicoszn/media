@@ -171,7 +171,7 @@ export default function Hero() {
             letterSpacing: "0.08em",
             textTransform: "uppercase",
           }}>
-            Browser-native • Zero uploads • FFmpeg powered
+            Browser-native • Zero uploads • Free
           </span>
         </div>
 
@@ -185,7 +185,7 @@ export default function Hero() {
           color: "#F1F5F9",
           marginBottom: "24px",
         }}>
-          Transform media.
+          Edit video and audio & Transform media.
           <br />
           <span style={{
             background: "linear-gradient(135deg, #7C3AED 0%, #06B6D4 60%, #8B5CF6 100%)",
@@ -193,7 +193,7 @@ export default function Hero() {
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
           }}>
-            Stay in control.
+            Stay in control without uploading a thing.
           </span>
         </h1>
 
@@ -208,13 +208,13 @@ export default function Hero() {
           fontWeight: 400,
         }}>
           Cut, convert, compress, speed up, flip and transform video and audio
-          directly in your browser. Your files never leave your machine.
+          directly in your browser. Your files never leave your device.
         </p>
 
         {/* CTAs */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
           <Link
-            href="/editor"
+            href="#tools"
             style={{
               display: "inline-flex",
               alignItems: "center",
