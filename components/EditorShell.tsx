@@ -530,7 +530,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               <LogPanel logs={logs} />
 
               {/* ── Actual operation controls (trim, resize, compress, etc.) ── */}
-{mediaFile && (
+{mediaFile && lockedOp && (
   <div style={{ width: "100%", maxWidth: "560px", marginTop: "8px", marginBottom: "8px", }}>
     <OperationPanel
       activeOp={activeOp}
@@ -539,6 +539,8 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
       onProcess={processFile}
       onMerge={mergeFiles}
       busy={busy}
+      lockedOp={lockedOp}
+      defaultFormat={defaultFormat}
     />
   </div>
 )}
@@ -553,19 +555,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
           )}
         </div>
 
-        {mediaFile && !lockedOp && (
-          <div className="side-panel" style={{ width: "340px", flexShrink: 0, borderLeft: "1px solid var(--color-border)", overflowY: "auto", padding: "24px 20px" }}>
-            <OperationPanel 
-              activeOp={activeOp} 
-              setActiveOp={handleSetActiveOp} 
-              media={mediaFile} 
-              onProcess={processFile} 
-              onMerge={mergeFiles} 
-              busy={busy} 
-             // defaultFormat={defaultFormat}
-              />
-          </div>
-        )}
+       
 
         {/* Locked single-op panel — no tool grid, just the config form */}
         {mediaFile && lockedOp && (
@@ -578,7 +568,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               onMerge={mergeFiles}
               busy={busy}
               lockedOp={lockedOp}
-             // defaultFormat={defaultFormat}
+              defaultFormat={defaultFormat}
             />
           </div>
         )}
