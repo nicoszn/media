@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import Her from "@/components/Her";
 import ToolsGrid from "@/components/ToolsGrid";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
@@ -10,6 +11,7 @@ export default function Home() {
     <main style={{ background: "var(--color-bg)", minHeight: "100vh", overflowX: "hidden" }}>
       <Navbar />
       <Hero />
+      <Her />
       <ToolsGrid />
       <HowItWorks />
       <Features />
