@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation"; // Imports the current route path
 import { useState, useEffect } from "react";
 import { Zap, Menu, X } from "lucide-react";
 
@@ -14,6 +15,8 @@ const NAV_TOOLS = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -153,75 +156,75 @@ export default function Navbar() {
 </nav>
 
       {/* Mobile dropdown */}
-      {menuOpen && (
-        <div
-          role="dialog"
-          aria-label="Mobile navigation"
-          style={{
-            position: "fixed",
-            top: "64px",
-            left: 0,
-            right: 0,
-            zIndex: 99,
-            background: "rgba(10,10,15,0.98)",
-            backdropFilter: "blur(16px)",
-            borderBottom: "1px solid rgba(124,58,237,0.18)",
-            padding: "16px 24px 24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-          }}
-          className="mobile-menu"
-        >
-          {NAV_TOOLS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMenuOpen(false)}
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: "15px",
-                color: "var(--color-text-secondary)",
-                textDecoration: "none",
-                padding: "12px 4px",
-                borderBottom: "1px solid var(--color-border)",
-                display: "block",
-                transition: "color 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#F1F5F9"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-secondary)"; }}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Link
-            href="/editor"
-            onClick={() => setMenuOpen(false)}
-            style={{
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: "14px",
-              fontWeight: 600,
-              color: "#fff",
-              textDecoration: "none",
-              padding: "12px 18px",
-              background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
-              borderRadius: "8px",
-              textAlign: "center",
-              marginTop: "12px",
-              display: "block",
-            }}
-          >
-            All Tools
-          </Link>
-        </div>
-      )}
+     {menuOpen && (
+  <div
+    role="dialog"
+    aria-label="Mobile navigation"
+    style={{
+      position: "fixed",
+      top: 0,              /* Set to 0 to stretch full-screen vertically */
+      left: 0,
+      right: 0,
+      bottom: 0,           /* Force the container to take full viewport height */
+      zIndex: 99,
+      background: "rgba(10,10,15,0.98)",
+      backdropFilter: "blur(16px)",
+      padding: "80px 24px 24px", /* Extra top padding so links don't hide under the fixed header */
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      overflowY: "auto",   /* Enables scrolling if item lists get long */
+    }}
+    className="mobile-menu"
+  >
+    {NAV_TOOLS.map((item) => {
+      // Check if this specific link matches the current URL address path
+      const isActive = pathname === item.href;
 
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: flex !important; }
-        }
-      `}</style>
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          onClick={() => setMenuOpen(false)}
+          style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: "18px", /* Boosted font size slightly for a full-screen layout */
+            fontWeight: isActive ? 600 : 400,
+            /* Dynamic active styling: bright white if active, muted gray if inactive */
+            color: isActive ? "#F1F5F9" : "var(--color-text-secondary)", 
+            textDecoration: "none",
+            padding: "16px 4px",
+            borderBottom: isActive 
+              ? "1px solid rgba(124,58,237,0.4)" /* Purple tint border for active link */
+              : "1px solid var(--color-border)",
+            display: "block",
+            transition: "color 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={(e) => { 
+            e.currentTarget.style.color = "#F1F5F9"; 
+          }}
+          onMouseLeave={(e) => { 
+            /* Fall back to correct state styling on mouse exit */
+            e.currentTarget.style.color = isActive ? "#F1F5F9" : "var(--color-text-secondary)"; 
+          }}
+        >
+          {item.label}
+        </Link>
+      );
+    })}
+  </div>
+)}
+
+<style>{`
+  @media (max-width: 768px) {
+    .desktop-nav { display: none !important; }
+    .mobile-menu-btn { display: flex !important; }
+  }
+  @media (min-width: 769px) {
+    /* Safe-guard: completely force hides full-screen overlay if screen sizes scale up */
+    .mobile-menu { display: none !important; } 
+  }
+`}</style>
     </>
   );
 }
