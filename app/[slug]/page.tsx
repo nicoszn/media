@@ -113,8 +113,8 @@ export default async function ToolPage({ params }: PageProps) {
             {/* 3. Wrapped EditorShell in Suspense to resolve the build error */}
         <Suspense fallback={<div className="h-[600px] w-full flex items-center justify-center bg-zinc-900 rounded-xl text-zinc-400">Loading tool interface...</div>}>
             <EditorShell lockedOp={tool.op} defaultFormat={tool.defaultFormat} />
-          </div>
        </Suspense>
+            </div>
 
           {/* Intro copy — distinct per tool, not templated */}
           <section style={{ marginBottom: "48px" }}>
