@@ -185,7 +185,7 @@ export default function Hero() {
           color: "#F1F5F9",
           marginBottom: "24px",
         }}>
-          Edit video and audio & Transform media.
+          Edit video and audio.
           <br />
           <span style={{
             background: "linear-gradient(135deg, #7C3AED 0%, #06B6D4 60%, #8B5CF6 100%)",
