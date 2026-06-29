@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export default function Her() {
+export default function Her () {
   return (
     <section style={{
       position: "relative", minHeight: "92vh", display: "flex", flexDirection: "column",
