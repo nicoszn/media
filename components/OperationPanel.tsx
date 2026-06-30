@@ -594,10 +594,11 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
               letterSpacing: "0.08em",
               marginBottom: "10px",
             }}>
-              // operation
+              operation
             </div>
             <div style={{
               display: "flex",
+              width: "100%",
               justifyContent: "center", // Centers the single active button nicely
             }}>
               {(() => {
@@ -610,12 +611,14 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
                       padding: "8px 16px",
                       background: "rgba(124,58,237,0.15)",
                       border: "1px solid rgba(124,58,237,0.5)",
-                      borderRadius: "100px", // Pill shape for a single button
+                      borderRadius: "12px", // Pill shape for a single button
                       cursor: "pointer",
                       display: "flex",
                       flexDirection: "row", // Row alignment for better single-button aesthetics
                       alignItems: "center",
+                      justifyContent: "center",
                       gap: "8px",
+                      width: "100%",
                       transition: "all 0.15s",
                     }}
                   >
@@ -647,7 +650,7 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
           letterSpacing: "0.08em",
           marginBottom: "16px",
         }}>
-          // configure
+           configure
         </div>
         {formMap[activeOp]}
       </div>
