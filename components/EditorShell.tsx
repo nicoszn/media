@@ -19,28 +19,11 @@ import MediaPreview from "@/components/MediaPreview";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EditorShellProps {
-  /**
-   * Locks the editor to a single operation type.
-   * When set: the tool-switcher grid is hidden, op cannot be changed,
-   * and the header shows the operation name instead of "editor".
-   * Used by dedicated SEO pages — e.g. /split-video passes lockedOp="split".
-   * When absent: all tools are available and switchable (the /editor route).
-   */
   lockedOp?: OperationType;
-  /**
-   * Pre-selects a value in the operation's format dropdown.
-   * Only consumed when lockedOp="format_convert".
-   * e.g. /video-to-gif passes defaultFormat="gif",
-   *      /convert-video-to-mp3 passes defaultFormat="mp3".
-   * Ignored by all other operations.
-   */
   defaultFormat?: string;
 }
 
 // ─── Output name generation ───────────────────────────────────────────────────
-// Derives a short, human-readable name from the original file.
-// Four variants per operation — cycles through them so repeated
-// exports of the same op on the same file get distinct names.
 
 const OP_SUFFIXES: Record<string, string[]> = {
   trim:           ["trimmed", "cut", "clipped", "excerpt"],
@@ -62,7 +45,6 @@ const OP_SUFFIXES: Record<string, string[]> = {
   merge:          ["merged", "joined", "combined", "concat"],
 };
 
-// Counts per (originalName + op) — resets when a new file is loaded.
 const exportCounters = new Map<string, number>();
 
 function deriveOutputName(originalName: string, op: string): string {
@@ -545,7 +527,6 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
   }, [router, searchParams, lockedOp]);
 
   const handleFile = useCallback(async (file: File) => {
-    // Reset counters for this file so name variants start fresh
     exportCounters.clear();
     clearResult();
     await loadFile(file);
@@ -556,7 +537,8 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
     : OP_LABELS[activeOp] ?? "editor";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
+    // 🟢 FIX: Removed minHeight: "100vh" so the root container shrinks to exactly fit its children!
+    <div style={{ background: "var(--color-bg)", display: "flex", flexDirection: "column" }}>
 
       {/* ── Header ── */}
       <header
@@ -610,7 +592,6 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
           </span>
         </div>
 
-        {/* Status — loading and processing only, no file name/size */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
           {isLoading && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -619,7 +600,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
                 style={{ animation: "spin 1s linear infinite" }}
               />
               <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>
-                Loading FFmpeg…
+                Loading …
               </span>
             </div>
           )}
@@ -639,17 +620,16 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
 
       {/* ── Main scroll column ── */}
       <div style={{
-        flex: "0 1 auto", // 👈 Changed from `flex: 1` to `0 1 auto` to prevent vertical stretching
+        flex: "0 1 auto",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "flex-start", // 👈 Removed the conditional to force content to always stay at the top
+        justifyContent: "flex-start",
         padding: "32px 24px",
         overflowY: "auto",
         gap: "16px",
       }}>
         {!mediaFile ? (
-          /* ── No file loaded — drop zone centred ── */
           <div style={{ textAlign: "center", width: "100%" }}>
             <div style={{
               fontFamily: "DM Mono, monospace",
@@ -664,17 +644,11 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
             </div>
           </div>
         ) : (
-          /* ── File loaded ── */
           <>
             <HistoryStrip history={history} canUndo={canUndo} onUndo={undo} />
-
-            {activeEntry && (
-              <SegmentPicker entry={activeEntry} onSelect={selectSibling} />
-            )}
-
+            {activeEntry && <SegmentPicker entry={activeEntry} onSelect={selectSibling} />}
             <MediaPreview media={mediaFile} />
 
-            {/* Progress */}
             {isProcessing && (
               <div style={{
                 width: "100%", maxWidth: "560px",
@@ -700,16 +674,10 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               </div>
             )}
 
-            {/* Result */}
             {result && result.success && (
-              <ResultPanel
-                result={result}
-                sourceFileName={mediaFile.name}
-                activeOp={activeOp}
-              />
+              <ResultPanel result={result} sourceFileName={mediaFile.name} activeOp={activeOp} />
             )}
 
-            {/* Error */}
             {error && (
               <div role="alert" style={{
                 width: "100%", maxWidth: "560px",
@@ -720,26 +688,18 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               }}>
                 <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0, marginTop: "1px" }} />
                 <div>
-                  <div style={{
-                    fontFamily: "Space Grotesk, sans-serif",
-                    fontSize: "13px", fontWeight: 600, color: "#EF4444", marginBottom: "4px",
-                  }}>
+                  <div style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: "13px", fontWeight: 600, color: "#EF4444", marginBottom: "4px" }}>
                     Error
                   </div>
-                  <div style={{
-                    fontFamily: "DM Mono, monospace",
-                    fontSize: "11px", color: "var(--color-text-muted)", wordBreak: "break-word",
-                  }}>
+                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)", wordBreak: "break-word" }}>
                     {error}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* FFmpeg log */}
             <LogPanel logs={logs} />
 
-            {/* ── Operation panel — below logs, full width, always in column ── */}
             <div style={{
               width: "100%", maxWidth: "560px",
               borderTop: "1px solid var(--color-border)",
@@ -758,7 +718,6 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               />
             </div>
 
-            {/* Start over */}
             <button
               onClick={clearFile}
               aria-label="Remove file and start over"
