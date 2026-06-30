@@ -557,8 +557,10 @@ function RunButton({ busy, onClick, disabled }: {
 // ─── Main Panel ────────────────────────────────────────────────────────────────
 
 export default function OperationPanel({ activeOp, setActiveOp, media, onProcess, onMerge, busy, lockedOp, defaultFormat  }: Props) {
-  // ✅ FIX: Use a Map/Object lookup to render ONLY the active form, 
-  // preventing any accidental stacking of multiple components.
+  // ✅ Isolate the single active button for rendering (completely hides all others)
+  const activeTool = TOOLS.find((t) => t.id === activeOp);
+
+  // ✅ Map forms to active op keys (ensures only the active one is mounted in the DOM)
   const formMap: Record<OperationType, React.ReactNode> = {
     trim: <TrimForm media={media} onRun={onProcess} busy={busy} />,
     split: <SplitForm media={media} onRun={onProcess} busy={busy} />,
@@ -575,68 +577,67 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
     format_convert: <FormatForm media={media} onRun={onProcess} busy={busy} defaultFormat={defaultFormat} />,
     volume: <VolumeForm onRun={onProcess} busy={busy} />,
     rotate: <RotateForm onRun={onProcess} busy={busy} />,
-    denoise: <DenoiseForm onRun={onProcess} busy={busy} />
+    denoise: <DenoiseForm onRun={onProcess} busy={busy} />,
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Tool selector */}
-      <div>
-        <div style={{
-          fontFamily: "DM Mono, monospace",
-          fontSize: "10px",
-          color: "var(--color-text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: "10px",
-        }}>
-          // operation
-        </div>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "6px",
-        }}>
-          {TOOLS.map((t) => {
-            const Icon = t.icon;
-            const active = activeOp === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveOp(t.id)}
-                title={t.label}
-                style={{
-                  padding: "8px 4px",
-                  background: active ? "rgba(124,58,237,0.15)" : "var(--color-card)",
-                  border: `1px solid ${active ? "rgba(124,58,237,0.5)" : "var(--color-border)"}`,
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "4px",
-                  transition: "all 0.15s",
-                }}
-              >
-                <Icon size={14} color={active ? "#8B5CF6" : "#475569"} />
-                <span style={{
-                  fontFamily: "DM Mono, monospace",
-                  fontSize: "9px",
-                  color: active ? "#8B5CF6" : "#475569",
-                  letterSpacing: "0.02em",
-                }}>
-                  {t.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Tool selector: Only displays the active button ── */}
+      {activeTool && (
+        <>
+          <div>
+            <div style={{
+              fontFamily: "DM Mono, monospace",
+              fontSize: "10px",
+              color: "var(--color-text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "10px",
+            }}>
+              // operation
+            </div>
+            <div style={{
+              display: "flex",
+              justifyContent: "center", // Centers the single active button nicely
+            }}>
+              {(() => {
+                const Icon = activeTool.icon;
+                return (
+                  <button
+                    key={activeTool.id}
+                    onClick={() => setActiveOp(activeTool.id)}
+                    style={{
+                      padding: "8px 16px",
+                      background: "rgba(124,58,237,0.15)",
+                      border: "1px solid rgba(124,58,237,0.5)",
+                      borderRadius: "100px", // Pill shape for a single button
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "row", // Row alignment for better single-button aesthetics
+                      alignItems: "center",
+                      gap: "8px",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <Icon size={14} color="#8B5CF6" />
+                    <span style={{
+                      fontFamily: "DM Mono, monospace",
+                      fontSize: "11px",
+                      color: "#8B5CF6",
+                      letterSpacing: "0.02em",
+                    }}>
+                      {activeTool.label}
+                    </span>
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
+          <div style={{ height: "1px", background: "var(--color-border)" }} />
+        </>
+      )}
 
-      {/* Divider */}
-      <div style={{ height: "1px", background: "var(--color-border)" }} />
-
-      {/* Config form */}
+      {/* ── Config form ── */}
       <div>
         <div style={{
           fontFamily: "DM Mono, monospace",
@@ -648,8 +649,6 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
         }}>
           // configure
         </div>
-
-        {/* ✅ Render the form based on the object lookup. If undefined, it renders nothing. */}
         {formMap[activeOp]}
       </div>
     </div>
