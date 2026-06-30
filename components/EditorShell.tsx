@@ -619,7 +619,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
                 style={{ animation: "spin 1s linear infinite" }}
               />
               <span style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>
-                Loading FFmpeg…
+                Loading
               </span>
             </div>
           )}
@@ -639,11 +639,12 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
 
       {/* ── Main scroll column ── */}
       <div style={{
-        flex: 1,
+        flex: "0 1 auto",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: !mediaFile ? "center" : "flex-start",
+        alignItems: "flex-start",
+        justifyContent: "flex-start",
+        // justifyContent: !mediaFile ? "center" : "flex-start",
         padding: "32px 24px",
         overflowY: "auto",
         gap: "16px",
@@ -655,7 +656,7 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
               fontFamily: "DM Mono, monospace",
               fontSize: "11px", color: "var(--color-text-muted)",
               letterSpacing: "0.08em", textTransform: "uppercase",
-              marginBottom: "24px",
+              marginBottom: "8px",
             }}>
               drop a file to begin
             </div>
