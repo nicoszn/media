@@ -575,8 +575,7 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
     format_convert: <FormatForm media={media} onRun={onProcess} busy={busy} defaultFormat={defaultFormat} />,
     volume: <VolumeForm onRun={onProcess} busy={busy} />,
     rotate: <RotateForm onRun={onProcess} busy={busy} />,
-    denoise: <DenoiseForm onRun={onProcess} busy={busy} />,
-    merge: null, // Not currently used in TOOLS but required by the type
+    denoise: <DenoiseForm onRun={onProcess} busy={busy} />
   };
 
   return (
