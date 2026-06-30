@@ -639,11 +639,11 @@ export default function EditorShell({ lockedOp, defaultFormat }: EditorShellProp
 
       {/* ── Main scroll column ── */}
       <div style={{
-        flex: 1,
+        flex: "0 1 auto", // 👈 Changed from `flex: 1` to `0 1 auto` to prevent vertical stretching
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: !mediaFile ? "center" : "flex-start",
+        justifyContent: "flex-start", // 👈 Removed the conditional to force content to always stay at the top
         padding: "32px 24px",
         overflowY: "auto",
         gap: "16px",
