@@ -188,7 +188,6 @@ function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operat
   const [points, setPoints] = useState<number[]>([Math.round(duration / 2)]);
 
   const addPoint = () => {
-    // Insert new point at midpoint of the largest gap
     const sorted = [...points].sort((a, b) => a - b);
     const boundaries = [0, ...sorted, duration];
     let maxGap = 0;
@@ -226,13 +225,7 @@ function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operat
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-
-      {/* Segment count badge */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           {segmentCount} segment{segmentCount !== 1 ? "s" : ""}
         </span>
@@ -240,57 +233,26 @@ function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operat
           onClick={addPoint}
           disabled={points.length >= 9}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            padding: "4px 10px",
+            display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px",
             background: points.length >= 9 ? "var(--color-card)" : "rgba(124,58,237,0.12)",
             border: `1px solid ${points.length >= 9 ? "var(--color-border)" : "rgba(124,58,237,0.3)"}`,
-            borderRadius: "6px",
-            color: points.length >= 9 ? "var(--color-text-muted)" : "#8B5CF6",
-            fontFamily: "DM Mono, monospace",
-            fontSize: "10px",
-            cursor: points.length >= 9 ? "not-allowed" : "pointer",
+            borderRadius: "6px", color: points.length >= 9 ? "var(--color-text-muted)" : "#8B5CF6",
+            fontFamily: "DM Mono, monospace", fontSize: "10px", cursor: points.length >= 9 ? "not-allowed" : "pointer",
           }}
         >
           <Plus size={11} /> Add cut
         </button>
       </div>
 
-      {/* Timeline visualisation */}
-      <div style={{
-        position: "relative",
-        height: "32px",
-        background: "var(--color-card)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "6px",
-        overflow: "hidden",
-      }}>
-        {/* Segment fills */}
+      <div style={{ position: "relative", height: "32px", background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "6px", overflow: "hidden" }}>
         {[0, ...sorted, duration].map((_, i, arr) => {
           if (i === arr.length - 1) return null;
           const left = (arr[i] / duration) * 100;
           const width = ((arr[i + 1] - arr[i]) / duration) * 100;
           const hue = 260 + i * 22;
           return (
-            <div key={i} style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: `${left}%`,
-              width: `${width}%`,
-              background: `hsla(${hue}, 70%, 55%, 0.25)`,
-              borderRight: i < arr.length - 2 ? "1px solid rgba(124,58,237,0.5)" : "none",
-            }}>
-              <span style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%,-50%)",
-                fontFamily: "DM Mono, monospace",
-                fontSize: "9px",
-                color: "#8B5CF6",
-              }}>
+            <div key={i} style={{ position: "absolute", top: 0, bottom: 0, left: `${left}%`, width: `${width}%`, background: `hsla(${hue}, 70%, 55%, 0.25)`, borderRight: i < arr.length - 2 ? "1px solid rgba(124,58,237,0.5)" : "none" }}>
+              <span style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", fontFamily: "DM Mono, monospace", fontSize: "9px", color: "#8B5CF6" }}>
                 {i + 1}
               </span>
             </div>
@@ -298,70 +260,22 @@ function SplitForm({ media, onRun, busy }: { media: MediaFile; onRun: (c: Operat
         })}
       </div>
 
-      {/* Cut point inputs */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {points.map((pt, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {/* Scrubber */}
             <div style={{ flex: 1 }}>
-              <input
-                type="range"
-                min={0.1}
-                max={duration - 0.1}
-                step={0.1}
-                value={pt}
-                onChange={(e) => updatePoint(i, Number(e.target.value))}
-                style={{ width: "100%", accentColor: "#7C3AED", cursor: "pointer" }}
-              />
+              <input type="range" min={0.1} max={duration - 0.1} step={0.1} value={pt} onChange={(e) => updatePoint(i, Number(e.target.value))} style={{ width: "100%", accentColor: "#7C3AED", cursor: "pointer" }} />
             </div>
-            {/* Time display / input */}
-            <input
-              type="number"
-              min={0.1}
-              max={duration - 0.1}
-              step={0.1}
-              value={Number(pt.toFixed(1))}
-              onChange={(e) => updatePoint(i, Number(e.target.value))}
-              style={{
-                width: "60px",
-                padding: "5px 8px",
-                background: "var(--color-card)",
-                border: "1px solid var(--color-border-bright)",
-                borderRadius: "6px",
-                color: "#F1F5F9",
-                fontFamily: "DM Mono, monospace",
-                fontSize: "11px",
-                textAlign: "right",
-              }}
-            />
-            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", width: "36px", flexShrink: 0 }}>
-              {fmtTime(pt)}
-            </span>
-            {/* Remove */}
-            <button
-              onClick={() => removePoint(i)}
-              disabled={points.length === 1}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: points.length === 1 ? "not-allowed" : "pointer",
-                color: points.length === 1 ? "var(--color-border)" : "#EF4444",
-                display: "flex",
-                alignItems: "center",
-                padding: "4px",
-                flexShrink: 0,
-              }}
-            >
+            <input type="number" min={0.1} max={duration - 0.1} step={0.1} value={Number(pt.toFixed(1))} onChange={(e) => updatePoint(i, Number(e.target.value))} style={{ width: "60px", padding: "5px 8px", background: "var(--color-card)", border: "1px solid var(--color-border-bright)", borderRadius: "6px", color: "#F1F5F9", fontFamily: "DM Mono, monospace", fontSize: "11px", textAlign: "right" }} />
+            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "10px", color: "var(--color-text-muted)", width: "36px", flexShrink: 0 }}>{fmtTime(pt)}</span>
+            <button onClick={() => removePoint(i)} disabled={points.length === 1} style={{ background: "none", border: "none", cursor: points.length === 1 ? "not-allowed" : "pointer", color: points.length === 1 ? "var(--color-border)" : "#EF4444", display: "flex", alignItems: "center", padding: "4px", flexShrink: 0 }}>
               <Trash2 size={13} />
             </button>
           </div>
         ))}
       </div>
 
-      <RunButton
-        busy={busy}
-        onClick={() => onRun({ type: "split", splitPoints: sorted })}
-      />
+      <RunButton busy={busy} onClick={() => onRun({ type: "split", splitPoints: sorted })} />
     </div>
   );
 }
@@ -371,36 +285,15 @@ function MergeForm({ onMerge, busy }: { onMerge: (files: File[]) => void; busy: 
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div
-        onClick={() => inputRef.current?.click()}
-        style={{
-          border: "1px dashed var(--color-border-bright)",
-          borderRadius: "8px",
-          padding: "16px",
-          textAlign: "center",
-          cursor: "pointer",
-          color: "var(--color-text-muted)",
-          fontFamily: "Inter, sans-serif",
-          fontSize: "13px",
-        }}
-      >
+      <div onClick={() => inputRef.current?.click()} style={{ border: "1px dashed var(--color-border-bright)", borderRadius: "8px", padding: "16px", textAlign: "center", cursor: "pointer", color: "var(--color-text-muted)", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>
         <Upload size={16} style={{ margin: "0 auto 6px", display: "block" }} />
         {files.length === 0 ? "Select files to merge" : `${files.length} files selected`}
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept="video/*,audio/*"
-          style={{ display: "none" }}
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-        />
+        <input ref={inputRef} type="file" multiple accept="video/*,audio/*" style={{ display: "none" }} onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
       </div>
       {files.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {files.map((f, i) => (
-            <div key={i} style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-secondary)" }}>
-              {f.name}
-            </div>
+            <div key={i} style={{ fontFamily: "DM Mono, monospace", fontSize: "11px", color: "var(--color-text-secondary)" }}>{f.name}</div>
           ))}
         </div>
       )}
@@ -485,23 +378,7 @@ function FlipForm({ onRun, busy }: { onRun: (c: OperationConfig) => void; busy: 
         <Label>Direction</Label>
         <div style={{ display: "flex", gap: "8px" }}>
           {(["horizontal", "vertical", "both"] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDir(d)}
-              style={{
-                flex: 1,
-                padding: "10px 8px",
-                background: dir === d ? "rgba(124,58,237,0.15)" : "var(--color-card)",
-                border: `1px solid ${dir === d ? "#7C3AED" : "var(--color-border)"}`,
-                borderRadius: "8px",
-                color: dir === d ? "#8B5CF6" : "var(--color-text-secondary)",
-                fontFamily: "Inter, sans-serif",
-                fontSize: "12px",
-                cursor: "pointer",
-                textTransform: "capitalize",
-                transition: "all 0.15s",
-              }}
-            >
+            <button key={d} onClick={() => setDir(d)} style={{ flex: 1, padding: "10px 8px", background: dir === d ? "rgba(124,58,237,0.15)" : "var(--color-card)", border: `1px solid ${dir === d ? "#7C3AED" : "var(--color-border)"}`, borderRadius: "8px", color: dir === d ? "#8B5CF6" : "var(--color-text-secondary)", fontFamily: "Inter, sans-serif", fontSize: "12px", cursor: "pointer", textTransform: "capitalize", transition: "all 0.15s" }}>
               {d}
             </button>
           ))}
@@ -523,21 +400,7 @@ function AspectForm({ onRun, busy }: { onRun: (c: OperationConfig) => void; busy
         <Label>Target aspect ratio</Label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" }}>
           {RATIOS.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRatio(r)}
-              style={{
-                padding: "8px",
-                background: ratio === r ? "rgba(124,58,237,0.15)" : "var(--color-card)",
-                border: `1px solid ${ratio === r ? "#7C3AED" : "var(--color-border)"}`,
-                borderRadius: "6px",
-                color: ratio === r ? "#8B5CF6" : "var(--color-text-secondary)",
-                fontFamily: "DM Mono, monospace",
-                fontSize: "11px",
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
+            <button key={r} onClick={() => setRatio(r)} style={{ padding: "8px", background: ratio === r ? "rgba(124,58,237,0.15)" : "var(--color-card)", border: `1px solid ${ratio === r ? "#7C3AED" : "var(--color-border)"}`, borderRadius: "6px", color: ratio === r ? "#8B5CF6" : "var(--color-text-secondary)", fontFamily: "DM Mono, monospace", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}>
               {r}
             </button>
           ))}
@@ -549,12 +412,7 @@ function AspectForm({ onRun, busy }: { onRun: (c: OperationConfig) => void; busy
           <TimeInput label="Custom height (px)" value={ch} onChange={setCh} />
         </>
       )}
-      <RunButton busy={busy} onClick={() => onRun({
-        type: "aspect_ratio",
-        aspectRatio: ratio,
-        customAspectW: cw,
-        customAspectH: ch,
-      })} />
+      <RunButton busy={busy} onClick={() => onRun({ type: "aspect_ratio", aspectRatio: ratio, customAspectW: cw, customAspectH: ch })} />
     </div>
   );
 }
@@ -601,14 +459,7 @@ function FormatForm({ media, onRun, busy, defaultFormat }: {
           </div>
         </>
       )}
-      <RunButton
-        busy={busy}
-        onClick={() => onRun({
-          type: "format_convert",
-          outputFormat: fmt,
-          ...(fmt === "gif" ? { width: gifWidth, targetFps: gifFps } : {}),
-        })}
-      />
+      <RunButton busy={busy} onClick={() => onRun({ type: "format_convert", outputFormat: fmt, ...(fmt === "gif" ? { width: gifWidth, targetFps: gifFps } : {}) })} />
     </div>
   );
 }
@@ -634,21 +485,7 @@ function RotateForm({ onRun, busy }: { onRun: (c: OperationConfig) => void; busy
         <Label>Degrees</Label>
         <div style={{ display: "flex", gap: "8px" }}>
           {([90, 180, 270] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDeg(d)}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: deg === d ? "rgba(124,58,237,0.15)" : "var(--color-card)",
-                border: `1px solid ${deg === d ? "#7C3AED" : "var(--color-border)"}`,
-                borderRadius: "8px",
-                color: deg === d ? "#8B5CF6" : "var(--color-text-secondary)",
-                fontFamily: "DM Mono, monospace",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
+            <button key={d} onClick={() => setDeg(d)} style={{ flex: 1, padding: "10px", background: deg === d ? "rgba(124,58,237,0.15)" : "var(--color-card)", border: `1px solid ${deg === d ? "#7C3AED" : "var(--color-border)"}`, borderRadius: "8px", color: deg === d ? "#8B5CF6" : "var(--color-text-secondary)", fontFamily: "DM Mono, monospace", fontSize: "12px", cursor: "pointer" }}>
               {d}°
             </button>
           ))}
@@ -720,6 +557,28 @@ function RunButton({ busy, onClick, disabled }: {
 // ─── Main Panel ────────────────────────────────────────────────────────────────
 
 export default function OperationPanel({ activeOp, setActiveOp, media, onProcess, onMerge, busy, lockedOp, defaultFormat  }: Props) {
+  // ✅ FIX: Use a Map/Object lookup to render ONLY the active form, 
+  // preventing any accidental stacking of multiple components.
+  const formMap: Record<OperationType, React.ReactNode> = {
+    trim: <TrimForm media={media} onRun={onProcess} busy={busy} />,
+    split: <SplitForm media={media} onRun={onProcess} busy={busy} />,
+    resize: <ResizeForm onRun={onProcess} busy={busy} />,
+    compress: <CompressForm onRun={onProcess} busy={busy} />,
+    speed: <SpeedForm onRun={onProcess} busy={busy} />,
+    loop: <LoopForm onRun={onProcess} busy={busy} />,
+    fps: <FpsForm onRun={onProcess} busy={busy} />,
+    flip: <FlipForm onRun={onProcess} busy={busy} />,
+    reverse: <SimpleRunForm label="Plays the video backwards with the audio reversed. Works best on short clips." op="reverse" onRun={onProcess} busy={busy} />,
+    extract_audio: <SimpleRunForm label="Extracts the audio track from the video and exports it as MP3 at 192kbps." op="extract_audio" onRun={onProcess} busy={busy} />,
+    extract_frames: <SimpleRunForm label="Exports one frame per second as JPEG images. Download the first frame; all are processed." op="extract_frames" onRun={onProcess} busy={busy} />,
+    aspect_ratio: <AspectForm onRun={onProcess} busy={busy} />,
+    format_convert: <FormatForm media={media} onRun={onProcess} busy={busy} defaultFormat={defaultFormat} />,
+    volume: <VolumeForm onRun={onProcess} busy={busy} />,
+    rotate: <RotateForm onRun={onProcess} busy={busy} />,
+    denoise: <DenoiseForm onRun={onProcess} busy={busy} />,
+    merge: null, // Not currently used in TOOLS but required by the type
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Tool selector */}
@@ -791,43 +650,8 @@ export default function OperationPanel({ activeOp, setActiveOp, media, onProcess
           // configure
         </div>
 
-        {activeOp === "trim" && <TrimForm media={media} onRun={onProcess} busy={busy} />}
-        {activeOp === "split" && <SplitForm media={media} onRun={onProcess} busy={busy} />}
-        {activeOp === "resize" && <ResizeForm onRun={onProcess} busy={busy} />}
-        {activeOp === "compress" && <CompressForm onRun={onProcess} busy={busy} />}
-        {activeOp === "speed" && <SpeedForm onRun={onProcess} busy={busy} />}
-        {activeOp === "loop" && <LoopForm onRun={onProcess} busy={busy} />}
-        {activeOp === "fps" && <FpsForm onRun={onProcess} busy={busy} />}
-        {activeOp === "flip" && <FlipForm onRun={onProcess} busy={busy} />}
-        {activeOp === "reverse" && (
-          <SimpleRunForm
-            label="Plays the video backwards with the audio reversed. Works best on short clips."
-            op="reverse"
-            onRun={onProcess}
-            busy={busy}
-          />
-        )}
-        {activeOp === "extract_audio" && (
-          <SimpleRunForm
-            label="Extracts the audio track from the video and exports it as MP3 at 192kbps."
-            op="extract_audio"
-            onRun={onProcess}
-            busy={busy}
-          />
-        )}
-        {activeOp === "extract_frames" && (
-          <SimpleRunForm
-            label="Exports one frame per second as JPEG images. Download the first frame; all are processed."
-            op="extract_frames"
-            onRun={onProcess}
-            busy={busy}
-          />
-        )}
-        {activeOp === "aspect_ratio" && <AspectForm onRun={onProcess} busy={busy} />}
-        {activeOp === "format_convert" && <FormatForm media={media} onRun={onProcess} busy={busy} defaultFormat={defaultFormat} />}
-        {activeOp === "volume" && <VolumeForm onRun={onProcess} busy={busy} />}
-        {activeOp === "rotate" && <RotateForm onRun={onProcess} busy={busy} />}
-        {activeOp === "denoise" && <DenoiseForm onRun={onProcess} busy={busy} />}
+        {/* ✅ Render the form based on the object lookup. If undefined, it renders nothing. */}
+        {formMap[activeOp]}
       </div>
     </div>
   );
