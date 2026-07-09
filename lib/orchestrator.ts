@@ -34,7 +34,7 @@ export class Orchestrator {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3-8b-instruct:free",
+          model: "meta-llama/llama-3.2-3b-instruct:free",
           messages: [{ role: "user", content: prompt }],
           response_format: jsonMode ? { type: "json_object" } : undefined,
           temperature: 0.0
