@@ -3,7 +3,7 @@ import { Tier1Scratchpad, Tier2IndexCache, Tier3SemanticGraph } from './tiers';
 import { MemoryRouter } from './memoryRouter';
 
 // Hardcode your OpenRouter API key here
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = "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";
 
 export class Orchestrator {
   private router: MemoryRouter;
