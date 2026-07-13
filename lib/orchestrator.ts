@@ -37,7 +37,7 @@ export class Orchestrator {
           model: "meta-llama/llama-3.2-3b-instruct:free",
           messages: [{ role: "user", content: prompt }],
           response_format: jsonMode ? { type: "json_object" } : undefined,
-          temperature: 0.0
+          temperature: 0.5
         })
       });
       const data = await response.json() as any;
